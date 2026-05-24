@@ -1,6 +1,6 @@
 {
   "name": "zeoel-framework",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "A production-grade multi-agent orchestration framework for building enterprise SaaS products.",
   "main": "index.js",
   "bin": {
