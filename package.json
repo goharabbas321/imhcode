@@ -1,0 +1,21 @@
+{
+  "name": "zeoel-framework",
+  "version": "1.0.0",
+  "description": "A production-grade multi-agent orchestration framework for building enterprise SaaS products.",
+  "main": "index.js",
+  "bin": {
+    "zeoel-framework": "./bin/zeoel.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "framework",
+    "zeoel",
+    "orchestration"
+  ],
+  "author": "Gohar Abbas",
+  "license": "MIT"
+}
