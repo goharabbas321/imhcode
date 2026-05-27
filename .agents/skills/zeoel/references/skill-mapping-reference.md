@@ -1,6 +1,6 @@
 # Skill Mapping Reference
 
-> Master index mapping the skills library to the 13 Zeoel sub-agents.
+> Master index mapping the skills library to the 23 Zeoel sub-agents.
 > Each agent gets curated, relevant skills.
 > ⭐ marks the agent's primary/most-used skills.
 
@@ -165,7 +165,7 @@
 - `product-lens`
 - `product-capability`
 
-### Hassan (Mobile Developer — Flutter)
+### Abdullah (Mobile Developer — Flutter)
 - `dart-flutter-patterns` ⭐
 - `flutter-dart-code-review` ⭐
 - `mobile-app-design` ⭐
@@ -176,6 +176,16 @@
 - `tdd-workflow`
 - `error-handling`
 - `motion-foundations`
+- `compose-multiplatform-patterns`
+
+### Zayd (React Native Specialist — Expo & Native Bridging)
+- `react-native-best-practices` ⭐
+- `react-native-brownfield-migration` ⭐
+- `upgrading-react-native` ⭐
+- `mobile-app-design`
+- `mobile-app-ui-design`
+- `frontend-patterns`
+- `test-driven-development` ⭐
 
 ### Fatima (Data & ML Engineer)
 - `postgres-patterns` ⭐

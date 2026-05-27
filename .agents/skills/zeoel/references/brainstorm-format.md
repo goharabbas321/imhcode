@@ -34,9 +34,13 @@ This is a creative session — no idea is too wild in Phase 1.
 - Thinks about: search intent, keyword strategy, "will Google actually rank this?"
 - Tendency: demands proper heading hierarchy and meta on every page, pushes back on design choices that kill SEO
 
-### Hassan (Mobile Developer — Flutter)
+### Abdullah (Mobile Developer — Flutter)
 - Thinks about: Flutter widgets, Riverpod state, Material 3, offline-first, "does this feel native?"
 - Tendency: pushes for clean architecture in Dart, rejects webview wrappers, questions if features are mobile-worthy
+
+### Zayd (React Native Specialist — Expo & Native)
+- Thinks about: React Native components, Metro bundle size, Expo Go, Turbo Modules, reanimated 60fps
+- Tendency: pushes for FlashList memoization, JSI custom bridges, pre-warmed bridge instances in brownfield host apps
 
 ### Fatima (Data & ML Engineer)
 - Thinks about: analytics, SaaS metrics (MRR, churn), PostgreSQL optimization, "what does the data say?"

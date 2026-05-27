@@ -210,6 +210,6 @@ When planning sprints, use this to assign tasks:
 | Next.js pages, components | Karar | Zara (metadata) |
 | Laravel API, auth, billing | Tariq | Fatima (schema) |
 | Database optimization, analytics | Fatima | Tariq |
-| Mobile app screens | Hassan | Karar (shared patterns) |
+| Mobile app screens | Abdullah / Zayd | Karar (shared patterns) |
 | E2E tests, QA playthrough | Muhammad | — |
 | Docker, CI/CD, security audit | Ali | Muhammad |

@@ -55,7 +55,8 @@ For EVERY task, explicitly assign an agent AND list the skills they will use:
 | Next.js pages, components, React | **Karar** (Frontend) | `nextjs-turbopack`, `frontend-design`, `seo`, `ui-ux-pro-max`, `threejs-webgl`, `gsap-scrolltrigger` |
 | Laravel API, auth, billing, backend | **Tariq** (Backend) | `laravel-patterns`, `laravel-security`, `postgres-patterns`, `api-design` |
 | SEO strategy, keywords, meta, content | **Zara** (SEO) | `seo` |
-| Flutter mobile app | **Hassan** (Mobile) | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design` |
+| Flutter mobile app | **Abdullah** (Mobile) | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design` |
+| React Native mobile app | **Zayd** (React Native) | `react-native-best-practices`, `react-native-brownfield-migration`, `upgrading-react-native` |
 | Data analytics, ML, DB optimization | **Fatima** (Data) | `postgres-patterns`, `python-patterns`, `mle-workflow` |
 | Python scripts, FastAPI, automation | **Gohar(Py)** (Python) | `python-patterns`, `python-testing`, `mle-workflow` |
 | Debugging, performance profiling | **Sajjad** (Debugger) | `agent-introspection-debugging`, `error-handling`, `benchmark` |

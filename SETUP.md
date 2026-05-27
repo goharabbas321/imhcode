@@ -147,7 +147,8 @@ When executing specialized tasks, load the relevant agent's persona file from `.
 - Frontend (Next.js): `karar-frontend.md`
 - Backend (Laravel): `tariq-backend.md`
 - SEO: `zara-content.md`
-- Mobile (Flutter): `hassan-mobile.md`
+- Mobile (Flutter): `abdullah-mobile.md`
+- React Native: `zayd-react-native.md`
 - Testing: `muhammad-qa.md`
 - Debugging: `sajjad-debugger.md`
 - Docs: `baqir-docs.md`

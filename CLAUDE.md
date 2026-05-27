@@ -27,7 +27,7 @@ The complete Zeoel framework is at `.agents/skills/zeoel/SKILL.md`. **Read it no
 
 **Phase Gates**: You CANNOT enter Phase N+1 without Phase N deliverables existing as files.
 
-## Agent Roster (22 Agents)
+## Agent Roster (23 Agents)
 
 | Agent | File | Dispatch For | Primary Skills (⭐) |
 |-------|------|-------------|---------------------|
@@ -37,7 +37,7 @@ The complete Zeoel framework is at `.agents/skills/zeoel/SKILL.md`. **Read it no
 | **Karar** (Frontend) | `karar-frontend.md` | Next.js, shadcn, TDD | `nextjs-turbopack`, `test-driven-development` |
 | **Tariq** (Backend) | `tariq-backend.md` | Laravel, PostgreSQL, APIs | `laravel-patterns`, `test-driven-development` |
 | **Zara** (SEO) | `zara-content.md` | Technical SEO, JSON-LD | `seo` |
-| **Hassan** (Mobile) | `hassan-mobile.md` | Flutter, Material 3 | `dart-flutter-patterns` |
+| **Abdullah** (Mobile) | `abdullah-mobile.md` | Flutter, Material 3 | `dart-flutter-patterns` |
 | **Fatima** (Data) | `fatima-data.md` | Analytics, ML | `postgres-patterns`, `python-patterns` |
 | **Abbas** (Python) | `abbas-python.md` | Python, Django, FastAPI | `python-patterns`, `test-driven-development` |
 | **Sajjad** (Debugger) | `sajjad-debugger.md` | Root cause analysis | `systematic-debugging`, `error-handling` |
@@ -52,6 +52,7 @@ The complete Zeoel framework is at `.agents/skills/zeoel/SKILL.md`. **Read it no
 | **Khadija** (Healthcare)| `khadija-healthcare.md`| HIPAA, FHIR | `healthcare-compliance` |
 | **Salman** (Web3) | `salman-web3.md` | Smart Contracts, DeFi | `solidity-patterns` |
 | **Maryam** (Business) | `maryam-ops.md` | SaaS Ops, Metrics | `saas-ops` |
+| **Zayd** (React Native) | `zayd-react-native.md` | React Native, Expo | `react-native-best-practices` |
 
 All agent files are in `.agents/skills/zeoel/agents/`.
 

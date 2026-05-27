@@ -118,7 +118,8 @@ You MUST:
    | Input validation | Validation boundary tests (XSS, SQL injection, oversized input) | Tariq |
    | Database migration | Migration rollback test | Tariq |
    | Tenant-scoped query | Tenant isolation verification test | Tariq |
-   | Flutter widget | Widget test using WidgetTester | Hassan |
+   | Flutter widget | Widget test using WidgetTester | Abdullah |
+   | React Native component | Jest / testing-library spec file | Zayd |
    | Python function/module | pytest test file | Gohar(Py)/Fatima |
    | CI/CD pipeline | Pipeline validation test | Ali |
    | API endpoint (any) | Request/response contract test | Tariq/Gohar(Py) |
@@ -207,7 +208,8 @@ After the audit, **update `docs/sprint-N/progress.md`** with an audit checkpoint
 | UX design, wireframes            | **Mahdi**    | `agents/mahdi-designer.md`     | `frontend-design`, `seo`                                                                             |
 | CSS, animations, 3D, visual      | **Mustafa**  | `agents/mustafa-visual.md`     | `frontend-design`, `ui-ux-pro-max`, `threejs-webgl`, `gsap-scrolltrigger`, `motion-framer`           |
 | SEO, keywords, meta, content     | **Zara**     | `agents/zara-content.md`       | `seo`                                                                                                |
-| Flutter mobile app               | **Hassan**   | `agents/hassan-mobile.md`      | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design`                             |
+| Flutter mobile app               | **Abdullah** | `agents/abdullah-mobile.md`    | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design`                             |
+| React Native mobile app          | **Zayd**     | `agents/zayd-react-native.md`  | `react-native-best-practices`, `react-native-brownfield-migration`, `upgrading-react-native`          |
 | Data, analytics, ML              | **Fatima**   | `agents/fatima-data.md`        | `postgres-patterns`, `python-patterns`, `mle-workflow`                                               |
 | Python, Django, FastAPI, ML      | **Abbas**    | `agents/abbas-python.md`       | `python-patterns`, `django-patterns`, `mle-workflow`, `django-celery`                                |
 | Debugging, performance           | **Sajjad**   | `agents/sajjad-debugger.md`    | `agent-introspection-debugging`, `error-handling`, `benchmark`                                       |

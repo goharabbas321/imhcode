@@ -65,7 +65,8 @@ Copy this template to your project root and fill in every section. **Do not abbr
 | Frontend | Karar | Next.js App Router, Server Components, SEO | [Frontend tasks] |
 | Backend | Tariq | Laravel API, Cashier/Stripe, PostgreSQL | [Backend tasks] |
 | Content/SEO | Zara | Keyword strategy, meta, JSON-LD, copy | [SEO & content tasks] |
-| Mobile | Hassan | React Native companion app | [Mobile tasks] |
+| Mobile | Abdullah | Flutter companion app | [Mobile tasks] |
+| React Native | Zayd | React Native companion app | [React Native tasks] |
 | Data/ML | Fatima | Postgres analytics, ML pipelines | [Analytics tasks] |
 | DevOps | Ali | CI/CD, Docker, security audit | [Infrastructure] |
 | QA | Muhammad | Playwright E2E tests, bug filing | [Verification] |

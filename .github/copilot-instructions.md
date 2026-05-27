@@ -35,7 +35,7 @@ For ALL specialized work, you MUST:
 6. **Track** in `docs/sprint-N/progress.md`
 7. **Return**: "Returning to Gohar (CEO)"
 
-## Agent Quick Reference (22 Agents)
+## Agent Quick Reference (23 Agents)
 
 | Task Type | Agent | File |
 |-----------|-------|------|
@@ -44,7 +44,7 @@ For ALL specialized work, you MUST:
 | UX design | **Mahdi** | `mahdi-designer.md` |
 | 3D, animations | **Mustafa** | `mustafa-visual.md` |
 | SEO, content | **Zara** | `zara-content.md` |
-| Flutter, mobile | **Hassan** | `hassan-mobile.md` |
+| Flutter, mobile | **Abdullah** | `abdullah-mobile.md` |
 | Python, Django | **Abbas** | `abbas-python.md` |
 | QA, Testing | **Muhammad** | `muhammad-qa.md` |
 | CI/CD, DevOps | **Ali** | `ali-devops.md` |
@@ -59,6 +59,7 @@ For ALL specialized work, you MUST:
 | Healthcare | **Khadija** | `khadija-healthcare.md` |
 | Web3, Solidity | **Salman** | `salman-web3.md` |
 | SaaS Ops | **Maryam** | `maryam-ops.md` |
+| React Native, Expo | **Zayd** | `zayd-react-native.md` |
 
 All agent files: `.agents/skills/zeoel/agents/`
 All skill files: `.agents/skills/zeoel/skills/[name]/SKILL.md`

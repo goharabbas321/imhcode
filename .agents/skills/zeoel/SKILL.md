@@ -240,9 +240,9 @@ Gohar NEVER writes application source code, components, APIs, styles, or test fi
 
 ---
 
-## The 22 Sub-Agents
+## The 23 Sub-Agents
 
-Zeoel consists of 22 specialized sub-agents, located in `.agents/skills/zeoel/agents/`. When dispatching an agent in Phase 3, you MUST read their agent file and load their skill bindings.
+Zeoel consists of 23 specialized sub-agents, located in `.agents/skills/zeoel/agents/`. When dispatching an agent in Phase 3, you MUST read their agent file and load their skill bindings.
 
 | Agent            | Name         | Role                                | Primary Skills (⭐)                                                                                             |
 | ---------------- | ------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
@@ -252,7 +252,7 @@ Zeoel consists of 22 specialized sub-agents, located in `.agents/skills/zeoel/ag
 | Sr. Frontend Eng | **Karar**    | Next.js, shadcn/ui, 3D, GSAP, SEO   | `nextjs-turbopack`, `frontend-design`, `seo`, `ui-ux-pro-max`, `threejs-webgl`, `gsap-scrolltrigger`            |
 | Backend Engineer | **Tariq**    | Laravel, PostgreSQL, SaaS Billing   | `laravel-patterns`, `laravel-security`, `postgres-patterns`, `api-design`, `security-review`                    |
 | Content & SEO    | **Zara**     | Technical SEO, Content Strategy     | `seo`                                                                                                           |
-| Mobile Developer | **Hassan**   | Flutter, Material 3, Riverpod       | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design`                                        |
+| Mobile Developer | **Abdullah** | Flutter, Material 3, Riverpod       | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design`                                        |
 | Data & ML Eng    | **Fatima**   | Postgres Analytics, ML Pipelines    | `postgres-patterns`, `python-patterns`, `mle-workflow`                                                          |
 | Python & ML Eng  | **Abbas**    | Python, Django, FastAPI, ML         | `python-patterns`, `django-patterns`, `mle-workflow`, `django-celery`                                           |
 | Debugger & Perf  | **Sajjad**   | Debugging, Performance, Arch Review | `agent-introspection-debugging`, `error-handling`, `benchmark`                                                  |
@@ -267,6 +267,7 @@ Zeoel consists of 22 specialized sub-agents, located in `.agents/skills/zeoel/ag
 | Healthcare       | **Khadija**  | HIPAA, EMR Integration              | `healthcare-emr-patterns`, `hipaa-compliance`, `healthcare-phi-compliance`                                      |
 | Web3 Engineer    | **Salman**   | Smart Contracts, DeFi               | `defi-amm-security`                                                                                             |
 | Business Ops     | **Maryam**   | SaaS Billing, Logistics             | `customer-billing-ops`                                                                                          |
+| React Native Specialist | **Zayd** | React Native, Expo, native bridging | `react-native-best-practices`, `react-native-brownfield-migration`, `upgrading-react-native`                    |
 
 _To add new agents, read `references/agent-training-guide.md`._
 

@@ -4,7 +4,7 @@
 
 ## What is Zeoel?
 
-Zeoel is an AI-powered software development agency that replaces monolithic prompts with a **22-agent pipeline**. Each agent has a distinct persona, curated skill pack, and specific responsibility. When you say "I want to build a SaaS product", Zeoel doesn't just start coding — it **brainstorms**, **plans sprints**, **delegates to specialists**, and **verifies quality** before shipping.
+Zeoel is an AI-powered software development agency that replaces monolithic prompts with a **23-agent pipeline**. Each agent has a distinct persona, curated skill pack, and specific responsibility. When you say "I want to build a SaaS product", Zeoel doesn't just start coding — it **brainstorms**, **plans sprints**, **delegates to specialists**, and **verifies quality** before shipping.
 
 ### The 4-Phase Pipeline
 
@@ -17,7 +17,7 @@ Phase 1: BRAINSTORM → Phase 2: PLAN → Phase 3: EXECUTE → Phase 4: VERIFY &
 3. **Execution** — Each agent is dispatched with its curated skills to complete its task in the `frontend/` or `backend/` directories.
 4. **Verification & Snapshot** — QA tests, security audit, SEO audit, and a full backup of the sprint to `.worktrees/sprint-N/`.
 
-## The 22 Agents
+## The 23 Agents
 
 | Agent | Name | Specialty |
 |-------|------|-----------|
@@ -27,13 +27,14 @@ Phase 1: BRAINSTORM → Phase 2: PLAN → Phase 3: EXECUTE → Phase 4: VERIFY &
 | ⚛️ Sr. Frontend Eng | **Karar** | Next.js App Router, shadcn/ui, 3D, GSAP, SEO |
 | 🔧 Backend Engineer | **Tariq** | Laravel, PostgreSQL, SaaS Billing, Multi-Tenancy |
 | 📝 Content & SEO | **Zara** | Technical SEO, Keyword Strategy, JSON-LD |
-| 📱 Mobile Developer | **Hassan** | Flutter, Material 3, Riverpod, Dart |
+| 📱 Mobile Developer | **Abdullah** | Flutter, Material 3, Riverpod, Dart |
 | 📊 Data & ML | **Fatima** | Postgres Analytics, ML Pipelines, SaaS Metrics |
 | 🐍 Python & Auto | **Gohar(Py)** | Python, FastAPI, ML, Automation Scripts |
 | 🔍 Debugger & Perf | **Sajjad** | Root Cause Analysis, Performance Profiling |
 | 📚 Docs & API | **Baqir** | Technical Writing, OpenAPI, Developer Experience |
 | 🧪 QA Engineer | **Muhammad** | E2E Testing, Bug Filing, Quality Assurance |
 | 🛡️ DevOps & Security | **Ali** | CI/CD, Docker, OWASP ASI, Security Auditing |
+| 🌐 React Native Specialist | **Zayd** | React Native, Expo, Native Integration |
 
 > All agent names are from **Ahle Bait (a.s.)** and the Zeoel team.
 
@@ -45,7 +46,8 @@ Phase 1: BRAINSTORM → Phase 2: PLAN → Phase 3: EXECUTE → Phase 4: VERIFY &
 | 3D/Animation | Three.js, React Three Fiber, GSAP, Framer Motion | Karar + Mustafa |
 | Backend | Laravel 11+ (PHP 8.3), Sanctum, Cashier | Tariq |
 | Database | PostgreSQL 16+, Redis | Tariq + Fatima |
-| Mobile | Flutter 3.x, Dart, Riverpod, Material 3 | Hassan |
+| Mobile | Flutter 3.x, Dart, Riverpod, Material 3 | Abdullah |
+| React Native | React Native, Expo, Native Bridging | Zayd |
 | SEO | JSON-LD, Sitemap, Meta API, Structured Data | Zara + Karar |
 | DevOps | Docker, GitHub Actions, Laravel Sail | Ali |
 
@@ -70,20 +72,21 @@ See **[SETUP.md](SETUP.md)** for step-by-step installation on GitHub Copilot, Co
 ├── SKILL.md                              # Main orchestrator (entry point)
 ├── README.md                             # This file
 ├── SETUP.md                              # Platform setup guide
-├── agents/                               # 22 specialized sub-agents
+├── agents/                               # 23 specialized sub-agents
 │   ├── gohar-ceo.md                      # CEO & Coordinator
 │   ├── mahdi-designer.md                 # Product Designer (SEO-first)
 │   ├── mustafa-visual.md                 # Visual Director (3D, GSAP)
 │   ├── karar-frontend.md                 # Senior Frontend (Next.js, shadcn, 3D)
 │   ├── tariq-backend.md                  # Backend (Laravel, PostgreSQL)
 │   ├── zara-content.md                   # Content & SEO Specialist
-│   ├── hassan-mobile.md                  # Mobile (Flutter)
+│   ├── abdullah-mobile.md                # Mobile (Flutter)
 │   ├── fatima-data.md                    # Data & ML Engineer
 │   ├── gohar-python.md                   # Python & Automation
 │   ├── sajjad-debugger.md                # Debugger & Performance
 │   ├── baqir-docs.md                     # Documentation & API
 │   ├── muhammad-qa.md                    # QA & Testing
 │   ├── ali-devops.md                     # DevOps & Security
+│   ├── zayd-react-native.md              # React Native Specialist
 │   └── _template.md                      # Template for adding new agents
 ├── skills/                               # 116 skills (6 orchestration + 110 library)
 │   ├── zeoel-brainstorm/                 # Phase 1: Ideation & Debate

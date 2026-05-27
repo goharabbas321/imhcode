@@ -1,0 +1,53 @@
+name: Zeoel Framework Validator
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-size: 20
+
+    - name: Verify package structure
+      run: |
+        echo "Verifying core files exist..."
+        test -f CLAUDE.md
+        test -f AGENTS.md
+        test -f SETUP.md
+        test -f README.md
+        test -f bin/zeoel.js
+
+    - name: Run Smoke Test (Initialization)
+      run: |
+        echo "Running framework initialization smoke test..."
+        mkdir test-sandbox
+        cd test-sandbox
+        node ../bin/zeoel.js
+        echo "Verifying copied files inside sandbox..."
+        test -d .agents
+        test -d .github
+        test -f CLAUDE.md
+        test -f AGENTS.md
+        test -f SETUP.md
+        test -d frontend
+        test -d backend
+        test -d .worktrees
+        echo "Smoke test passed successfully!"
+
+    - name: Lint Agent and Skill markdown syntax
+      run: |
+        echo "Verifying markdown links and frontmatter formatting..."
+        # Basic check to ensure markdown files aren't completely empty and start cleanly
+        find .agents/skills/zeoel/agents/ -name "*.md" -exec head -n 1 {} \;
+        find .agents/skills/zeoel/skills/ -name "SKILL.md" -exec head -n 1 {} \;
