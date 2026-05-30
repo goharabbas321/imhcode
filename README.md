@@ -2,19 +2,20 @@
 
 # 🤖 Zeoel — AI Agency Multi-Agent Framework
 
-### The 22-Agent AI Development Team That Builds Your Software
+### The 23-Agent AI Development Team That Builds Your Software
 
 [![NPM Version](https://img.shields.io/npm/v/zeoel-framework.svg?style=for-the-badge&color=0ea5e9)](https://www.npmjs.com/package/zeoel-framework)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Agents](https://img.shields.io/badge/Agents-22-a855f7?style=for-the-badge)](https://github.com/goharabbas321/zeoel-framework)
+[![Agents](https://img.shields.io/badge/Agents-23-a855f7?style=for-the-badge)](https://github.com/goharabbas321/zeoel-framework)
 [![Skills](https://img.shields.io/badge/Skills-420+-f97316?style=for-the-badge)](https://github.com/goharabbas321/zeoel-framework)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-Ready-6366f1?style=for-the-badge&logo=anthropic)](https://github.com/goharabbas321/zeoel-framework)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 
-**A production-grade multi-agent orchestration framework** that replaces monolithic AI prompts with a team of 22 specialized AI agents — each with curated skills, strict TDD enforcement, and sprint-based project management.
+**A production-grade multi-agent orchestration framework for Claude Code, Cursor, and Gemini CLI** that replaces monolithic AI prompts with a team of 23 specialized AI agents — each with curated skills, strict TDD enforcement, and sprint-based project management. Stop vibe-coding. Start shipping.
 
 Works with **Claude Code** · **Cursor** · **Gemini CLI** · **GitHub Copilot** · **Antigravity** · and more
 
-[Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [The 22 Agents](#-the-22-specialized-agents) · [420+ Skills](#-420-curated-skills) · [Contributing](CONTRIBUTING.md)
+[Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [The 23 Agents](#-the-23-specialized-agents) · [420+ Skills](#-420-curated-skills) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -38,12 +39,12 @@ That's it. Zeoel takes over — brainstorming, planning sprints, dispatching spe
 
 ## 🤔 Why Zeoel?
 
-Most AI coding tools use a single monolithic prompt. You tell them to "build a SaaS app" and they dump out untested, unstructured code. **Zeoel is different.**
+Most AI coding tools use a single monolithic prompt. You tell them to "build a SaaS app" and they dump out untested, unstructured code — that's **vibe-coding**. **Zeoel is different.**
 
 | Feature | Plain AI Tool | Zeoel Framework |
 |---|:---:|:---:|
 | Structured 4-phase pipeline | ❌ | ✅ |
-| 22 specialized agents (frontend, backend, QA, DevOps...) | ❌ | ✅ |
+| 23 specialized agents (frontend, backend, QA, DevOps...) | ❌ | ✅ |
 | Strict TDD enforcement (Red-Green-Refactor) | ❌ | ✅ |
 | Sprint planning with progress tracking | ❌ | ✅ |
 | Automatic code containment (`frontend/` + `backend/`) | ❌ | ✅ |
@@ -56,7 +57,7 @@ Most AI coding tools use a single monolithic prompt. You tell them to "build a S
 
 ## 🔄 How It Works
 
-Zeoel follows a disciplined 4-phase pipeline — no shortcuts, no vibe-coding:
+Zeoel follows a disciplined 4-phase pipeline — no shortcuts, no vibe-coding. Works natively with **Claude Code sub-agents**, **Cursor**, **Gemini CLI**, and **GitHub Copilot**:
 
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
@@ -64,7 +65,7 @@ Zeoel follows a disciplined 4-phase pipeline — no shortcuts, no vibe-coding:
 │              │    │             │    │             │    │             │
 │ CEO debates  │    │ Sprint      │    │ Agents      │    │ QA tests    │
 │ with all     │    │ decomp,     │    │ dispatched   │    │ Security    │
-│ 22 agents    │    │ task cards  │    │ with TDD    │    │ SEO audit   │
+│ 23 agents    │    │ task cards  │    │ with TDD    │    │ SEO audit   │
 │              │    │ feature     │    │ Red-Green-  │    │ Worktree    │
 │ PROJECT_     │    │ branch      │    │ Refactor    │    │ snapshot    │
 │ BRIEF.md     │    │ created     │    │             │    │             │
@@ -211,7 +212,7 @@ Zeoel works seamlessly with all major AI coding tools:
 You: "I want to build a SaaS dashboard with auth and billing"
 
 Zeoel: [Phase 1] "I'm starting the brainstorm. Let me debate with 
-       all 22 agents to define scope..."
+       all 23 agents to define scope..."
        
        [Phase 2] "Here's the sprint plan with 12 tasks. Approve?"
        
@@ -246,6 +247,8 @@ See **[REFERENCES.md](REFERENCES.md)** for the full list of projects that inspir
 - [Anthropic Claude Code](https://github.com/anthropics/claude-code) — CLAUDE.md conventions
 - [VoltAgent](https://github.com/VoltAgent) — Skills aggregation patterns
 - And many more...
+
+> **Why "Zeoel"?** The name honors the legacy of knowledge and justice. All 23 agent names are inspired by Ahle Bait (a.s.) and the Zeoel development team.
 
 ---
 

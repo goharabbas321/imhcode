@@ -121,7 +121,7 @@ These projects fundamentally shaped Zeoel's architecture and methodology:
 
 Zeoel curates and integrates skills from the open-source community. Each imported skill is:
 
-1. **Adapted** to work within our 22-agent orchestration pipeline
+1. **Adapted** to work within our 23-agent orchestration pipeline
 2. **Enhanced** with TDD enforcement hooks and verification loops
 3. **Tested** against our sprint execution framework
 4. **Maintained** to stay current with upstream changes

@@ -5,7 +5,7 @@
 <HARD-GATE>
 MANDATORY RULES — ZERO EXCEPTIONS:
 1. NEVER write code without an approved `PROJECT_BRIEF.md`.
-2. ALWAYS follow the pipeline: Brainstorm → Plan → Isolate (Worktree) → Execute (Strict TDD) → Verify.
+2. ALWAYS follow the pipeline: Brainstorm → Plan → Execute (Strict TDD) → Verify & Snapshot.
 3. ALWAYS read the relevant agent's `.md` file AND load their ⭐ skill bindings before specialized work.
 4. ALWAYS create ALL mandatory documents at each phase boundary.
 5. Code MUST live in `frontend/` or `backend/`. No other code directories.

@@ -42,6 +42,30 @@ When brainstorming, you MUST channel the distinct voices of the Zeoel team. Each
 
 ## Process Checklist (Follow in Order)
 
+### Step 0: Project Configuration (MANDATORY)
+
+Before brainstorming begins, Gohar MUST ask the user these configuration questions. Ask them ONE AT A TIME, not all at once. Record the answers — they will be saved in `PROJECT_BRIEF.md` Section 0.
+
+1. **Stack scope**: "Do you need frontend only (with mock data), full-stack (frontend + backend), or backend only?"
+2. **Frontend framework**: "Which frontend framework? (Next.js / Vite + React / Nuxt / Other / None)"
+3. **Backend framework**: "Which backend framework? (Laravel / Django / FastAPI / NestJS / Spring Boot / None)"
+4. **Database**: "Which database? (PostgreSQL / MySQL / MongoDB / SQLite / None)"
+5. **Mobile**: "Do you need a companion mobile app? (Flutter / React Native / None)"
+6. **Worktree snapshots**: "Should I create `.worktrees/sprint-N/` snapshots after each sprint for version history? (Yes / No)"
+7. **Testing strictness**: "Do you want Strict TDD (Red-Green-Refactor, tests written first — mandatory) or Relaxed (tests written after code)?"
+
+<HARD-GATE>
+Do NOT proceed to Step 1 (Explore) until ALL 7 configuration questions have been answered by the user.
+If the user says "default" or "you decide", use these defaults:
+- Stack: Full-stack
+- Frontend: Next.js
+- Backend: Laravel
+- Database: PostgreSQL
+- Mobile: None
+- Worktree snapshots: Yes
+- Testing: Strict TDD
+</HARD-GATE>
+
 ### Step 1: Explore Project Context
 Ask the user for their initial idea. Listen. Do NOT jump to solutions.
 
@@ -59,6 +83,7 @@ Gohar synthesizes the debate and asks the user 1-2 focused questions to resolve 
 
 ### Step 4: Draft PROJECT_BRIEF.md
 Once aligned, Gohar drafts the brief using the template from `.agents/skills/zeoel/references/project-brief-template.md`.
+- **Section 0 (Project Configuration)** MUST be filled with the user's answers from Step 0.
 - Fill in EVERY section. No placeholders like "TBD" or "to be decided".
 - Include the SEO Strategy section (Section 6.5) — Zara MUST define keywords and URL structure.
 - Include the Team Assignments section — assign every agent their responsibilities.

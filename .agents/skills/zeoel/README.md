@@ -29,11 +29,19 @@ Phase 1: BRAINSTORM → Phase 2: PLAN → Phase 3: EXECUTE → Phase 4: VERIFY &
 | 📝 Content & SEO | **Zara** | Technical SEO, Keyword Strategy, JSON-LD |
 | 📱 Mobile Developer | **Abdullah** | Flutter, Material 3, Riverpod, Dart |
 | 📊 Data & ML | **Fatima** | Postgres Analytics, ML Pipelines, SaaS Metrics |
-| 🐍 Python & Auto | **Gohar(Py)** | Python, FastAPI, ML, Automation Scripts |
+| 🐍 Python Engineer | **Abbas** | Python, Django, FastAPI, Scikit-learn, Celery |
 | 🔍 Debugger & Perf | **Sajjad** | Root Cause Analysis, Performance Profiling |
 | 📚 Docs & API | **Baqir** | Technical Writing, OpenAPI, Developer Experience |
 | 🧪 QA Engineer | **Muhammad** | E2E Testing, Bug Filing, Quality Assurance |
 | 🛡️ DevOps & Security | **Ali** | CI/CD, Docker, OWASP ASI, Security Auditing |
+| 🧠 AI Architect | **Ibrahim** | Multi-agent setups, MCP servers, LLM evaluations |
+| ☕ Enterprise Java | **Yusuf** | Spring Boot, Quarkus, enterprise patterns |
+| ⚙️ Systems Engineer | **Bilal** | Go, Rust, C++, high-performance networking |
+| 🍏 iOS Developer | **Layla** | SwiftUI, Swift concurrency, CoreData |
+| 🤖 Android Developer | **Hamza** | Kotlin, Jetpack Compose, clean architecture |
+| 🏥 Healthcare Engineer | **Khadija** | HIPAA compliance, EMR integration, FHIR |
+| ⛓️ Web3 Engineer | **Salman** | Smart contracts, DeFi, AMM security, Solidity |
+| 💼 Business Operations | **Maryam** | SaaS billing ops, logistics, startup metrics |
 | 🌐 React Native Specialist | **Zayd** | React Native, Expo, Native Integration |
 
 > All agent names are from **Ahle Bait (a.s.)** and the Zeoel team.
@@ -81,12 +89,20 @@ See **[SETUP.md](SETUP.md)** for step-by-step installation on GitHub Copilot, Co
 │   ├── zara-content.md                   # Content & SEO Specialist
 │   ├── abdullah-mobile.md                # Mobile (Flutter)
 │   ├── fatima-data.md                    # Data & ML Engineer
-│   ├── gohar-python.md                   # Python & Automation
+│   ├── abbas-python.md                  # Python Engineer
 │   ├── sajjad-debugger.md                # Debugger & Performance
 │   ├── baqir-docs.md                     # Documentation & API
 │   ├── muhammad-qa.md                    # QA & Testing
 │   ├── ali-devops.md                     # DevOps & Security
 │   ├── zayd-react-native.md              # React Native Specialist
+│   ├── ibrahim-ai.md                     # AI Architect
+│   ├── yusuf-java.md                     # Enterprise Java
+│   ├── bilal-systems.md                  # Systems (Go, Rust, C++)
+│   ├── layla-ios.md                      # iOS (SwiftUI)
+│   ├── hamza-android.md                  # Android (Kotlin)
+│   ├── khadija-healthcare.md             # Healthcare (HIPAA)
+│   ├── salman-web3.md                    # Web3 (Solidity)
+│   ├── maryam-ops.md                     # Business Operations
 │   └── _template.md                      # Template for adding new agents
 ├── skills/                               # 116 skills (6 orchestration + 110 library)
 │   ├── zeoel-brainstorm/                 # Phase 1: Ideation & Debate

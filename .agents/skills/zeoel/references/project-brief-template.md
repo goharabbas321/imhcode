@@ -9,6 +9,20 @@ Copy this template to your project root and fill in every section. **Do not abbr
 
 > Last updated: [date] | Sprint [N] | Status: [In Progress / Complete]
 
+## 0. Project Configuration
+
+> These settings were chosen by the Product Owner during the onboarding questionnaire (Step 0).
+
+| Setting | Choice |
+|---------|--------|
+| **Stack Scope** | [Frontend Only / Full-Stack / Backend Only] |
+| **Frontend Framework** | [Next.js / Vite + React / Nuxt / Other / None] |
+| **Backend Framework** | [Laravel / Django / FastAPI / NestJS / Spring Boot / None] |
+| **Database** | [PostgreSQL / MySQL / MongoDB / SQLite / None] |
+| **Mobile Companion** | [Flutter / React Native / None] |
+| **Worktree Snapshots** | [Yes / No] |
+| **Testing Strictness** | [Strict TDD / Relaxed] |
+
 ## 1. Project Overview
 
 [3-4 sentences describing what the project is, who it's for, and the core goal.]
