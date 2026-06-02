@@ -77,10 +77,20 @@ Copy this template to your project root and fill in every section. **Do not abbr
 | Product | Mahdi | UX design, SEO-first layout, accessibility | [UX tasks] |
 | Art/CSS | Mustafa | Visual design, animations, polish | [Styling tasks] |
 | Frontend | Karar | Next.js App Router, Server Components, SEO | [Frontend tasks] |
+| Bootstrap | Hassan | Bootstrap 5 UI, SCSS theming, dashboards | [Bootstrap tasks] |
+| shadcn/UI | Noor | shadcn component systems, Radix primitives | [Component system tasks] |
+| React | Anas | React/Vite SPAs, interactive UIs | [React tasks] |
+| Vue/Nuxt | Amina | Vue 3 + Nuxt 4 frontend | [Vue/Nuxt tasks] |
+| CSS Expert | Hasan | Pixel-perfect CSS, responsive layouts | [CSS/layout tasks] |
 | Backend | Tariq | Laravel API, Cashier/Stripe, PostgreSQL | [Backend tasks] |
 | Content/SEO | Zara | Keyword strategy, meta, JSON-LD, copy | [SEO & content tasks] |
 | Mobile | Abdullah | Flutter companion app | [Mobile tasks] |
 | React Native | Zayd | React Native companion app | [React Native tasks] |
+| Security | Hamid | Threat modeling, penetration testing, EVM audit | [Security tasks] |
+| Marketing | Farhan | Persuasive copywriting, conversion hooks, CRO | [Marketing tasks] |
+| Slide Expert | Taha | McKinsey presentation deck & design systems | [Presentation tasks] |
+| Spatial Expert | Sami | Parametric GIS layouts & PostGIS optimization | [Computational tasks] |
+| PhD Researcher | Yahya | Literature synthesis & empirical PhD reports | [Research tasks] |
 | Data/ML | Fatima | Postgres analytics, ML pipelines | [Analytics tasks] |
 | DevOps | Ali | CI/CD, Docker, security audit | [Infrastructure] |
 | QA | Muhammad | Playwright E2E tests, bug filing | [Verification] |

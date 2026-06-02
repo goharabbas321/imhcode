@@ -102,9 +102,15 @@ Before any code is written, read and follow `.agents/skills/zeoel/skills/zeoel-b
 
 ---
 
-### Phase 2: Sprint Planning (zeoel-sprint-planner + zeoel-saas-architect)
+### Phase 2: Sprint Planning (zeoel-sprint-planner + zeoel-saas-architect + graphify)
 
 Once the brief is approved, read and follow `.agents/skills/zeoel/skills/zeoel-sprint-planner/SKILL.md`. For SaaS projects, also load `.agents/skills/zeoel/skills/zeoel-saas-architect/SKILL.md` for the standard Next.js + Laravel + PostgreSQL blueprint. Gohar decomposes the brief into sprints and assigns every task to a specific sub-agent **with their skill bindings listed** and **required tests specified**.
+
+**At the beginning of Phase 2, Gohar MUST run the following command to build or update the codebase's semantic knowledge base:**
+```bash
+/graphify . --wiki
+```
+This builds an agent-crawlable markdown wiki in `graphify-out/wiki/` and generates the plain-language audit report `GRAPH_REPORT.md` representing the semantic relationship of the codebase.
 
 **Mandatory Deliverables (per sprint):**
 
@@ -128,16 +134,19 @@ Before writing any code, Gohar (CEO) MUST isolate the workspace to prevent accid
 
 ---
 
-### Phase 3: Execution (zeoel-dispatch)
+### Phase 3: Execution (zeoel-dispatch + caveman + graphify)
 
 Read and follow `.agents/skills/zeoel/skills/zeoel-dispatch/SKILL.md` to execute the sprint plan. For each task, you MUST dispatch the assigned agent by:
 
 1. Reading their agent definition from `.agents/skills/zeoel/agents/[name].md`
-2. Loading their ⭐ (starred) skill bindings
-3. Executing the task using ONLY their bound skills
-4. **Writing tests alongside the code** (see Test Mandate in zeoel-dispatch)
-5. Running the **Post-Task Checkpoint** — update progress, verify tests, log deferred items
-6. Every 3 tasks, running the **Incremental Audit Check** (QA + Security + SEO mini-review)
+2. Loading their ⭐ (starred) skill bindings, including `caveman` and `graphify`
+3. **Retrieving Codebase Context (Graphify)**: Before scanning whole files, run `/graphify query "[relevant task domain]"` or inspect `graphify-out/wiki/` to retrieve exact file boundaries and semantic relationships, achieving up to 71.5x input token savings.
+4. **Prompt & Response Compression (Caveman)**: Instruct the agent to strictly adhere to `caveman` prompting principles (concise telegraphic style, no filler words, byte-preserved paths, highly compacted diffs) to save ~75% of output tokens.
+5. Executing the task using ONLY their bound skills
+6. **Writing tests alongside the code** (see Test Mandate in zeoel-dispatch)
+7. Running the **Post-Task Checkpoint** — update progress, verify tests, log deferred items
+8. **Incremental Graph Update**: After code changes, run `/graphify . --update` to incrementally re-index changed files into the knowledge base, keeping the codebase index hot and accurate.
+9. Every 3 tasks, running the **Incremental Audit Check** (QA + Security + SEO mini-review)
 
 **Mandatory Deliverables (after EVERY task):**
 
@@ -240,34 +249,45 @@ Gohar NEVER writes application source code, components, APIs, styles, or test fi
 
 ---
 
-## The 23 Sub-Agents
+## The 33 Sub-Agents
 
-Zeoel consists of 23 specialized sub-agents, located in `.agents/skills/zeoel/agents/`. When dispatching an agent in Phase 3, you MUST read their agent file and load their skill bindings.
+Zeoel consists of 33 specialized sub-agents, located in `.agents/skills/zeoel/agents/`. When dispatching an agent in Phase 3, you MUST read their agent file and load their skill bindings.
 
 | Agent            | Name         | Role                                | Primary Skills (⭐)                                                                                             |
 | ---------------- | ------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| CEO              | **Gohar**    | Orchestrator, Planner               | `zeoel`, `zeoel-saas-architect`                                                                                 |
+| CEO              | **Gohar**    | Orchestrator, Planner               | `zeoel`, `caveman`, `graphify`, `zeoel-saas-architect`                                                                                  |
 | Product Designer | **Mahdi**    | UX, Accessibility, SEO-First Design | `frontend-design`, `seo`                                                                                        |
 | Visual Director  | **Mustafa**  | 3D, GSAP, Premium Styling           | `frontend-design`, `ui-ux-pro-max`, `modern-web-design`, `threejs-webgl`, `gsap-scrolltrigger`, `motion-framer` |
 | Sr. Frontend Eng | **Karar**    | Next.js, shadcn/ui, 3D, GSAP, SEO   | `nextjs-turbopack`, `frontend-design`, `seo`, `ui-ux-pro-max`, `threejs-webgl`, `gsap-scrolltrigger`            |
+| Bootstrap UI Architect  | **Hassan** | Bootstrap 5, SCSS, Premium Dashboards | `bootstrap-patterns`, `frontend-design`, `ui-ux-pro-max`                                                        |
+| shadcn/UI Specialist    | **Noor**   | Radix + Tailwind Component Systems    | `shadcn-ui-patterns`, `radix-ui-primitives`, `tailwindcss-v4`, `ui-ux-pro-max`                                  |
+| React UI Craftsman      | **Anas**   | React 19, Vite, Interactive UIs       | `vite-patterns`, `frontend-design`, `ui-ux-pro-max`, `modern-web-design`, `caveman`, `graphify`                 |
+| Vue/Nuxt Architect      | **Amina**  | Vue 3, Nuxt 4, SSR Vue                | `vue3-composition-patterns`, `nuxt4-patterns`, `vite-patterns`, `frontend-design`                               |
+| Pixel-Perfect CSS Eng   | **Hasan**  | CSS Grid, Container Queries, View Transitions | `css-container-queries`, `tailwindcss-v4`, `modern-web-design`, `frontend-design`                               |
 | Backend Engineer | **Tariq**    | Laravel, PostgreSQL, SaaS Billing   | `laravel-patterns`, `laravel-security`, `postgres-patterns`, `api-design`, `security-review`                    |
-| Content & SEO    | **Zara**     | Technical SEO, Content Strategy     | `seo`                                                                                                           |
+| Content & SEO    | **Zara**     | Technical SEO, Content Strategy     | `seo`, `seo-growth`                                                                                             |
 | Mobile Developer | **Abdullah** | Flutter, Material 3, Riverpod       | `dart-flutter-patterns`, `flutter-dart-code-review`, `mobile-app-design`                                        |
+| React Native Specialist | **Zayd** | React Native, Expo, native bridging | `react-native-best-practices`, `react-native-brownfield-migration`, `upgrading-react-native`                    |
 | Data & ML Eng    | **Fatima**   | Postgres Analytics, ML Pipelines    | `postgres-patterns`, `python-patterns`, `mle-workflow`                                                          |
 | Python & ML Eng  | **Abbas**    | Python, Django, FastAPI, ML         | `python-patterns`, `django-patterns`, `mle-workflow`, `django-celery`                                           |
+| Systems Engineer | **Bilal**    | Go, Rust, C++, Perf                 | `golang-patterns`, `rust-patterns`                                                                              |
+| iOS Developer    | **Layla**    | SwiftUI, Concurrency                | `swiftui-patterns`, `swift-concurrency-6-2`                                                                     |
+| Android Dev      | **Hamza**    | Kotlin, Jetpack Compose             | `kotlin-patterns`, `android-clean-architecture`                                                                 |
+| Web3 Engineer    | **Salman**   | Smart Contracts, DeFi               | `defi-amm-security`, `trailofbits-auditing`                                                                     |
+| Cybersecurity    | **Hamid**    | Red Team & Penetration Auditor      | `claude-red`, `trailofbits-auditing`, `security-review`                                                         |
+| Growth Hacker    | **Farhan**   | CRO & Performance Marketer          | `growth-marketing`, `seo-growth`, `seo`                                                                         |
+| Slide Designer   | **Taha**     | McKinsey PPT & Pitch Designer       | `ppt-mckinsey`, `ckm:slides`, `ckm:design-system`                                                               |
+| Comput. Designer | **Sami**     | Parametric & GIS Spatial Designer   | `computational-architecture`, `postgres-patterns`                                                               |
+| PhD Researcher   | **Yahya**    | Principal Academic Investigator     | `empirical-research`, `deep-research`, `zeoel-codebase-knowledge`                                               |
 | Debugger & Perf  | **Sajjad**   | Debugging, Performance, Arch Review | `agent-introspection-debugging`, `error-handling`, `benchmark`                                                  |
 | Docs & API       | **Baqir**    | Documentation, OpenAPI, DX          | `zeoel-codebase-knowledge`, `codebase-onboarding`, `api-design`                                                 |
 | QA Engineer      | **Muhammad** | Testing, Bug Filing                 | `e2e-testing`, `webapp-testing`                                                                                 |
 | DevOps Engineer  | **Ali**      | CI/CD, Docker, Security             | `deployment-patterns`, `docker-patterns`, `security-review`, `zeoel-security`                                   |
-| AI Architect     | **Ibrahim**  | Multi-agent, MCP, LLM Eval          | `agentic-engineering`, `agent-architecture-audit`, `mcp-server-patterns`                                        |
+| AI Architect     | **Ibrahim**  | Multi-agent, MCP, LLM Eval          | `agentic-engineering`, `agent-architecture-audit`, `mcp-server-patterns`, `self-evolution`                      |
 | Enterprise Java  | **Yusuf**    | Spring Boot, Quarkus                | `springboot-patterns`, `springboot-security`, `java-coding-standards`                                           |
-| Systems Engineer | **Bilal**    | Go, Rust, C++, Perf                 | `golang-patterns`, `rust-patterns`                                                                              |
-| iOS Developer    | **Layla**    | SwiftUI, Concurrency                | `swiftui-patterns`, `swift-concurrency-6-2`                                                                     |
-| Android Dev      | **Hamza**    | Kotlin, Jetpack Compose             | `kotlin-patterns`, `android-clean-architecture`                                                                 |
 | Healthcare       | **Khadija**  | HIPAA, EMR Integration              | `healthcare-emr-patterns`, `hipaa-compliance`, `healthcare-phi-compliance`                                      |
-| Web3 Engineer    | **Salman**   | Smart Contracts, DeFi               | `defi-amm-security`                                                                                             |
 | Business Ops     | **Maryam**   | SaaS Billing, Logistics             | `customer-billing-ops`                                                                                          |
-| React Native Specialist | **Zayd** | React Native, Expo, native bridging | `react-native-best-practices`, `react-native-brownfield-migration`, `upgrading-react-native`                    |
+| Product Manager  | **Zainab**   | Agile Sprints, Backlogs             | `project-flow-ops`, `product-lens`                                                                              |
 
 _To add new agents, read `references/agent-training-guide.md`._
 

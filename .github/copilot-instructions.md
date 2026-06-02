@@ -10,6 +10,7 @@ This project uses the **Zeoel AI Agency** — a multi-agent framework for robust
 4. **ALWAYS** create ALL mandatory documents at each phase boundary.
 5. Code **MUST** live in `frontend/` or `backend/`. No other code directories.
 6. When the user says "build X" → Start with Phase 1 (Brainstorm). Do NOT jump to code.
+7. **ALWAYS** run graphify (`/graphify . --wiki`) for codebase mapping and strictly apply `caveman` guidelines (filler-free, concise replies) to save ~71.5x input and 75% output tokens.
 
 ## Framework Entry Point
 
@@ -35,31 +36,42 @@ For ALL specialized work, you MUST:
 6. **Track** in `docs/sprint-N/progress.md`
 7. **Return**: "Returning to Gohar (CEO)"
 
-## Agent Quick Reference (23 Agents)
+## Agent Quick Reference (33 Agents)
 
 | Task Type | Agent | File |
 |-----------|-------|------|
 | Next.js, React | **Karar** | `karar-frontend.md` |
+| Bootstrap 5, SCSS | **Hassan** | `hassan-bootstrap.md` |
+| shadcn/UI component variants | **Noor** | `noor-shadcn.md` |
+| Pure React/Vite SPAs, Zustand | **Anas** | `anas-react.md` |
+| Vue 3, Nuxt 4, Pinia | **Amina** | `amina-vue.md` |
+| Container queries, modern CSS | **Hasan** | `hasan-css.md` |
 | Laravel, API | **Tariq** | `tariq-backend.md` |
 | UX design | **Mahdi** | `mahdi-designer.md` |
 | 3D, animations | **Mustafa** | `mustafa-visual.md` |
 | SEO, content | **Zara** | `zara-content.md` |
 | Flutter, mobile | **Abdullah** | `abdullah-mobile.md` |
+| React Native, Expo | **Zayd** | `zayd-react-native.md` |
 | Python, Django | **Abbas** | `abbas-python.md` |
-| QA, Testing | **Muhammad** | `muhammad-qa.md` |
-| CI/CD, DevOps | **Ali** | `ali-devops.md` |
-| Debugging | **Sajjad** | `sajjad-debugger.md` |
-| Docs, OpenAPI | **Baqir** | `baqir-docs.md` |
 | Data, ML | **Fatima** | `fatima-data.md` |
-| Multi-agent | **Ibrahim** | `ibrahim-ai.md` |
-| Java, Spring | **Yusuf** | `yusuf-java.md` |
 | Go, Rust, C++ | **Bilal** | `bilal-systems.md` |
 | iOS, Swift | **Layla** | `layla-ios.md` |
 | Android, Kotlin | **Hamza** | `hamza-android.md` |
+| Smart Contracts, DeFi | **Salman** | `salman-web3.md` |
+| Red Team & Penetration Auditor | **Hamid** | `hamid-security.md` |
+| Funnel CRO & Performance Marketer | **Farhan** | `farhan-marketing.md` |
+| McKinsey PPT & Pitch Designer | **Taha** | `taha-presentation.md` |
+| Parametric GIS Spatial Designer | **Sami** | `sami-computational.md` |
+| Literature Synthesis & PhD Science | **Yahya** | `yahya-researcher.md` |
+| Debugging, Performance | **Sajjad** | `sajjad-debugger.md` |
+| Docs, OpenAPI | **Baqir** | `baqir-docs.md` |
+| QA, Testing | **Muhammad** | `muhammad-qa.md` |
+| CI/CD, DevOps | **Ali** | `ali-devops.md` |
+| Multi-agent, MCP, Self-Evolution | **Ibrahim** | `ibrahim-ai.md` |
+| Java, Spring | **Yusuf** | `yusuf-java.md` |
 | Healthcare | **Khadija** | `khadija-healthcare.md` |
-| Web3, Solidity | **Salman** | `salman-web3.md` |
 | SaaS Ops | **Maryam** | `maryam-ops.md` |
-| React Native, Expo | **Zayd** | `zayd-react-native.md` |
+| Sprints, Backlog | **Zainab** | `zainab-pm.md` |
 
 All agent files: `.agents/skills/zeoel/agents/`
 All skill files: `.agents/skills/zeoel/skills/[name]/SKILL.md`

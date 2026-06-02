@@ -49,6 +49,10 @@
 - `frontend-design` ⭐
 - `ui-ux-pro-max` ⭐
 - `modern-web-design` ⭐
+- `micro-interactions` ⭐
+- `design-auditor` ⭐
+- `shadcn-ui-patterns`
+- `css-container-queries`
 - `theme-factory`
 - `design-system`
 - `ui-demo`
@@ -98,13 +102,20 @@
 
 **Premium UI & Design System**
 - `ui-ux-pro-max` ⭐
+- `shadcn-ui-patterns` ⭐
+- `radix-ui-primitives`
+- `tailwindcss-v4`
 - `modern-web-design`
 - `theme-factory`
 - `design-system`
+- `design-auditor`
 - `ui-demo`
 - `liquid-glass-design`
 - `nothing-design`
 - `canvas-design`
+- `micro-interactions`
+- `css-container-queries`
+- `view-transitions-api`
 
 **3D & WebGL**
 - `threejs-webgl` ⭐
@@ -129,6 +140,206 @@
 - `e2e-testing`
 - `webapp-testing`
 - `tdd-workflow`
+
+---
+
+## Frontend Specialists
+
+### Hassan (Bootstrap UI Architect — Bootstrap 5, SCSS, Premium Dashboards)
+
+**Core Framework**
+- `bootstrap-patterns` ⭐
+- `frontend-design` ⭐
+- `ui-ux-pro-max` ⭐
+- `modern-web-design`
+- `vite-patterns`
+- `error-handling`
+
+**Design System**
+- `design-system`
+- `design-tokens-system`
+- `theme-factory`
+- `micro-interactions`
+- `accessibility` ⭐
+- `liquid-glass-design`
+
+**Animation & Motion**
+- `gsap-scrolltrigger`
+- `motion-framer`
+- `scroll-reveal-libraries`
+- `lottie-animations`
+- `motion-foundations`
+
+**Testing**
+- `e2e-testing`
+- `webapp-testing` ⭐
+- `tdd-workflow`
+
+### Noor (shadcn/UI & Radix Specialist — Component Systems, Accessibility)
+
+**Core Component Stack**
+- `shadcn-ui-patterns` ⭐
+- `radix-ui-primitives` ⭐
+- `tailwindcss-v4` ⭐
+- `ui-ux-pro-max` ⭐
+- `frontend-design` ⭐
+- `error-handling`
+
+**Design System**
+- `modern-web-design`
+- `design-system`
+- `design-tokens-system`
+- `theme-factory`
+- `liquid-glass-design`
+- `nothing-design`
+- `canvas-design`
+
+**Accessibility**
+- `accessibility` ⭐
+- `micro-interactions`
+- `design-auditor`
+
+**Animation**
+- `motion-framer`
+- `animejs`
+- `lottie-animations`
+- `motion-ui`
+
+**Testing**
+- `e2e-testing`
+- `webapp-testing` ⭐
+- `tdd-workflow`
+
+### Anas (React UI Craftsman — React 19, Vite, Interactive UIs)
+
+**Core Framework**
+- `vite-patterns` ⭐
+- `frontend-design` ⭐
+- `ui-ux-pro-max` ⭐
+- `modern-web-design` ⭐
+- `caveman` ⭐
+- `graphify` ⭐
+- `frontend-patterns`
+- `error-handling`
+
+**Premium UI**
+- `shadcn-ui-patterns`
+- `radix-ui-primitives`
+- `tailwindcss-v4` ⭐
+- `design-system`
+- `design-tokens-system`
+- `theme-factory`
+- `micro-interactions`
+- `liquid-glass-design`
+- `nothing-design`
+- `canvas-design`
+
+**3D (Lightweight)**
+- `lightweight-3d-effects`
+- `react-three-fiber`
+- `react-spring-physics`
+
+**Animation & Motion**
+- `gsap-scrolltrigger` ⭐
+- `motion-framer` ⭐
+- `animejs`
+- `motion-foundations`
+- `motion-advanced`
+- `motion-patterns`
+- `motion-ui`
+- `scroll-reveal-libraries`
+- `locomotive-scroll`
+- `lottie-animations`
+- `animated-component-libraries`
+
+**Testing**
+- `e2e-testing`
+- `webapp-testing` ⭐
+- `tdd-workflow`
+
+### Amina (Vue/Nuxt Frontend Architect — Vue 3, Nuxt 4, SSR)
+
+**Core Framework**
+- `vue3-composition-patterns` ⭐
+- `nuxt4-patterns` ⭐
+- `vite-patterns` ⭐
+- `frontend-design` ⭐
+- `ui-ux-pro-max` ⭐
+- `frontend-patterns`
+- `error-handling`
+
+**Premium UI**
+- `tailwindcss-v4` ⭐
+- `modern-web-design`
+- `design-system`
+- `design-tokens-system`
+- `theme-factory`
+- `micro-interactions`
+- `liquid-glass-design`
+- `nothing-design`
+
+**SEO & Accessibility**
+- `seo` ⭐
+- `accessibility`
+- `design-auditor`
+
+**Vue Ecosystem**
+- `ui-to-vue`
+
+**Animation & Motion**
+- `gsap-scrolltrigger` ⭐
+- `motion-framer`
+- `animejs`
+- `scroll-reveal-libraries`
+- `motion-foundations`
+- `motion-patterns`
+- `lottie-animations`
+
+**Testing**
+- `e2e-testing`
+- `webapp-testing` ⭐
+- `tdd-workflow`
+
+### Hasan (Pixel-Perfect CSS Engineer — CSS Grid, Container Queries, View Transitions)
+
+**Core CSS Mastery**
+- `css-container-queries` ⭐
+- `tailwindcss-v4` ⭐
+- `modern-web-design` ⭐
+- `frontend-design` ⭐
+- `ui-ux-pro-max` ⭐
+- `view-transitions-api` ⭐
+- `micro-interactions` ⭐
+- `error-handling`
+
+**Design System**
+- `design-system`
+- `design-tokens-system`
+- `theme-factory`
+- `design-auditor` ⭐
+- `liquid-glass-design`
+- `nothing-design`
+- `canvas-design`
+
+**Accessibility**
+- `accessibility` ⭐
+
+**Animation & Motion**
+- `gsap-scrolltrigger`
+- `motion-framer`
+- `locomotive-scroll`
+- `scroll-reveal-libraries`
+- `motion-foundations`
+- `motion-patterns`
+- `motion-ui`
+- `lottie-animations`
+
+**Testing**
+- `e2e-testing`
+- `webapp-testing` ⭐
+- `tdd-workflow`
+
+---
 
 ### Tariq (Backend Engineer — Laravel & PostgreSQL SaaS)
 - `laravel-patterns` ⭐
@@ -292,3 +503,39 @@
 - `zeoel-codebase-knowledge`
 - `canary-watch`
 - `gateguard`
+
+### Hamid (Senior Cybersecurity & Red Team Auditor)
+- `claude-red` ⭐
+- `trailofbits-auditing` ⭐
+- `security-review` ⭐
+- `security-scan`
+- `waza-habits`
+- `test-driven-development` ⭐
+
+### Farhan (Growth Hacker & Performance Marketer)
+- `growth-marketing` ⭐
+- `seo-growth` ⭐
+- `seo` ⭐
+- `waza-habits`
+- `test-driven-development` ⭐
+
+### Taha (McKinsey Presentation & Pitch Designer)
+- `ppt-mckinsey` ⭐
+- `ckm:slides` ⭐
+- `ckm:design-system` ⭐
+- `waza-habits`
+- `test-driven-development` ⭐
+
+### Sami (Parametric & GIS Spatial Designer)
+- `computational-architecture` ⭐
+- `postgres-patterns` ⭐
+- `python-patterns`
+- `waza-habits`
+- `test-driven-development` ⭐
+
+### Yahya (Principal PhD Academic Investigator)
+- `empirical-research` ⭐
+- `deep-research` ⭐
+- `zeoel-codebase-knowledge` ⭐
+- `waza-habits`
+- `test-driven-development` ⭐

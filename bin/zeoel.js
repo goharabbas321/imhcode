@@ -10,7 +10,7 @@ const packageRoot = path.join(__dirname, '..');
 const cwd = process.cwd();
 
 const itemsToCopy = [
-  { src: '.agents', dest: '.agents', desc: '23 specialized agents and 300+ skills' },
+  { src: '.agents', dest: '.agents', desc: '33 specialized agents and 450+ skills' },
   { src: '.github', dest: '.github', desc: 'Copilot and GitHub integration files' },
   { src: 'AGENTS.md', dest: 'AGENTS.md', desc: 'Agent manifest' },
   { src: 'CLAUDE.md', dest: 'CLAUDE.md', desc: 'Claude and Cursor integration file' },

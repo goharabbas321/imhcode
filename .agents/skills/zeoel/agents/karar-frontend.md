@@ -24,13 +24,20 @@ This agent has access to the following skills when dispatched:
 
 ### Premium UI & Design System
 - `ui-ux-pro-max` ⭐ (50+ styles, 161 color palettes, 57 font pairings, 99 UX guidelines)
+- `shadcn-ui-patterns` ⭐ (shadcn/ui theming, forms, data tables, component creation)
+- `radix-ui-primitives` (Headless accessible primitives — Dialog, Menu, Popover, Tabs)
+- `tailwindcss-v4` (CSS-first config, @theme tokens, OKLCH, container queries)
 - `modern-web-design` (2024-2025 design trends, micro-interactions, scrollytelling, bold minimalism)
 - `theme-factory` (Design token systems, theme generation)
 - `design-system` (Token architecture, component specifications)
+- `design-auditor` (Automated visual and accessibility auditing)
 - `ui-demo` (Interactive UI demonstrations)
 - `liquid-glass-design` (Glassmorphism, frosted glass effects)
 - `nothing-design` (Premium minimalism)
 - `canvas-design` (Canvas-based visual design)
+- `micro-interactions` (CSS micro-interactions — hover, focus, scroll-driven)
+- `css-container-queries` (Component-level responsive design)
+- `view-transitions-api` (Smooth page and component transitions)
 
 ### Top-Tier Design Patterns & Component Libraries
 - `typeui-main` ⭐ (TypeUI advanced component library)

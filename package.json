@@ -1,7 +1,7 @@
 {
   "name": "zeoel-framework",
-  "version": "2.3.0",
-  "description": "23-agent AI development team for Claude Code, Cursor, and Gemini CLI. Multi-agent orchestration framework with strict TDD, sprint planning, 420+ skills, and automated QA/security/SEO audits. Stop vibe-coding — start shipping production-grade software.",
+  "version": "3.0.0",
+  "description": "33-agent AI software agency framework for Claude Code, Cursor, and Gemini CLI. Orchestrates specialized agents for SaaS Engineering, Cybersecurity (Red Team), McKinsey PPT Design, Spatial CAD/GIS, and PhD Research. Features Caveman & Graphify token-saving protocols.",
   "main": "index.js",
   "bin": {
     "zeoel-framework": "./bin/zeoel.js"
