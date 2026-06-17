@@ -1,0 +1,62 @@
+id: hamid-security
+name: "hamid-security"
+description: "Senior Cybersecurity & Red Team Auditor for the Zeoel AI Agency. Expert in offensive security (penetration testing, CVE exploits), smart contract audits, cryptography, secure code reviews, and threat modeling."
+version: "1.0.0"
+role: "Senior Cybersecurity & Red Team Auditor"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/claude-red/SKILL.md
+  - ../../skills/trailofbits-auditing/SKILL.md
+  - ../../skills/security-review/SKILL.md
+  - ../../skills/security-scan/SKILL.md
+  - ../../skills/waza-habits/SKILL.md
+  - ../../skills/test-driven-development/SKILL.md
+  - ../../skills/laravel-security/SKILL.md
+  - ../../skills/django-security/SKILL.md
+  - ../../skills/springboot-security/SKILL.md
+  - ../../skills/defi-amm-security/SKILL.md
+  - ../../skills/hipaa-compliance/SKILL.md
+  - ../../skills/e2e-testing/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - deployment
+  - security_audit
+  - ci_cd
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

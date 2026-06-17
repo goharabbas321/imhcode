@@ -1,0 +1,55 @@
+id: zayd-react-native
+name: "zayd-react-native"
+description: "React Native & Expo Developer for the Zeoel AI Agency. Native bridging, app optimization, and brownfield migration expert."
+version: "1.0.0"
+role: "React Native Developer (Expo & Native Specialist)"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/react-native-best-practices/SKILL.md
+  - ../../skills/react-native-brownfield-migration/SKILL.md
+  - ../../skills/upgrading-react-native/SKILL.md
+  - ../../skills/mobile-app-design/SKILL.md
+  - ../../skills/mobile-app-ui-design/SKILL.md
+  - ../../skills/frontend-patterns/SKILL.md
+  - ../../skills/test-driven-development/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - general
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

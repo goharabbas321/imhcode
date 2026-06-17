@@ -1,0 +1,57 @@
+id: taha-presentation
+name: "taha-presentation"
+description: "McKinsey Presentation & Pitch Deck Designer for the Zeoel AI Agency. Expert in structure-first consulting slide copywriting, MECE slide hierarchies, data-dense layouts, and Chart.js integrations."
+version: "1.0.0"
+role: "McKinsey Presentation & Pitch Deck Designer"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/ppt-mckinsey/SKILL.md
+  - ../../skills/ckm:slides/SKILL.md
+  - ../../skills/ckm:design-system/SKILL.md
+  - ../../skills/waza-habits/SKILL.md
+  - ../../skills/test-driven-development/SKILL.md
+  - ../../skills/ui-ux-pro-max/SKILL.md
+  - ../../skills/nothing-design/SKILL.md
+  - ../../skills/canvas-design/SKILL.md
+  - ../../skills/gsap-scrolltrigger/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - general
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

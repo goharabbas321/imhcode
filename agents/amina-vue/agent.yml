@@ -1,0 +1,81 @@
+id: amina-vue
+name: "amina-vue"
+description: "Vue/Nuxt Frontend Architect for the Zeoel AI Agency. Master of Vue 3 Composition API, Nuxt 4 SSR/SSG, Pinia state management, Vite tooling, pixel-perfect responsive UIs with Tailwind CSS, and SEO-first Vue architecture."
+version: "1.0.0"
+role: "Vue/Nuxt Frontend Architect (Vue 3, Nuxt 4, SSR, Premium UI)"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/test-driven-development/SKILL.md
+  - ../../skills/vue3-composition-patterns/SKILL.md
+  - ../../skills/nuxt4-patterns/SKILL.md
+  - ../../skills/vite-patterns/SKILL.md
+  - ../../skills/frontend-design/SKILL.md
+  - ../../skills/ui-ux-pro-max/SKILL.md
+  - ../../skills/frontend-patterns/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+  - ../../skills/tailwindcss-v4/SKILL.md
+  - ../../skills/modern-web-design/SKILL.md
+  - ../../skills/design-system/SKILL.md
+  - ../../skills/design-tokens-system/SKILL.md
+  - ../../skills/theme-factory/SKILL.md
+  - ../../skills/micro-interactions/SKILL.md
+  - ../../skills/liquid-glass-design/SKILL.md
+  - ../../skills/nothing-design/SKILL.md
+  - ../../skills/awwwards/SKILL.md
+  - ../../skills/apple/SKILL.md
+  - ../../skills/stripe/SKILL.md
+  - ../../skills/seo/SKILL.md
+  - ../../skills/accessibility/SKILL.md
+  - ../../skills/design-auditor/SKILL.md
+  - ../../skills/ui-to-vue/SKILL.md
+  - ../../skills/gsap-scrolltrigger/SKILL.md
+  - ../../skills/motion-framer/SKILL.md
+  - ../../skills/animejs/SKILL.md
+  - ../../skills/scroll-reveal-libraries/SKILL.md
+  - ../../skills/motion-foundations/SKILL.md
+  - ../../skills/motion-patterns/SKILL.md
+  - ../../skills/lottie-animations/SKILL.md
+  - ../../skills/e2e-testing/SKILL.md
+  - ../../skills/webapp-testing/SKILL.md
+  - ../../skills/tdd-workflow/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - general
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

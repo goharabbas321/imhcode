@@ -1,0 +1,52 @@
+id: layla-ios
+name: "layla-ios"
+description: "iOS Developer for the Zeoel AI Agency. SwiftUI and Swift Concurrency specialist for premium Apple ecosystem apps."
+version: "1.0.0"
+role: "iOS Developer"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/swiftui-patterns/SKILL.md
+  - ../../skills/swift-concurrency-6-2/SKILL.md
+  - ../../skills/swift-actor-persistence/SKILL.md
+  - ../../skills/ios-icon-gen/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - general
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

@@ -1,349 +1,289 @@
 <div align="center">
 
-# 🤖 Zeoel — AI Agency Multi-Agent Framework
+<img src="zeoel.png" alt="Zeoel AI Cover" width="800" style="max-width: 100%; border-radius: 12px; margin-bottom: 20px;">
 
-### The 33-Agent AI Development Team That Builds Your Software
+# 🌌 Zeoel-AI — Autonomous Multi-Agent Software Agency
 
-[![NPM Version](https://img.shields.io/npm/v/zeoel-framework.svg?style=for-the-badge&color=0ea5e9)](https://www.npmjs.com/package/zeoel-framework)
-[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Agents](https://img.shields.io/badge/Agents-33-a855f7?style=for-the-badge)](AGENTS.md)
-[![Skills](https://img.shields.io/badge/Skills-450+-f97316?style=for-the-badge)](REFERENCES.md)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-Ready-6366f1?style=for-the-badge&logo=anthropic)](CLAUDE.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
+### A 33-agent orchestrator for Claude Code, Cursor, and Gemini CLI featuring smart model routing, strict Test-Driven Development (TDD), and token-saving protocols.
 
-**A production-grade multi-agent orchestration framework for Claude Code, Cursor, and Gemini CLI** that replaces monolithic AI prompts with a team of 33 specialized AI agents — each with curated skills, strict TDD enforcement, and sprint-based project management. Stop vibe-coding. Start shipping.
+<p align="center">
+  <a href="https://www.npmjs.com/package/zeoel-ai"><img src="https://img.shields.io/npm/v/zeoel-ai?label=zeoel-ai&style=for-the-badge&logo=npm&color=cb3837" alt="npm version"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-22c55e.svg?style=for-the-badge" alt="License: MIT"></a>
+  <a href="AGENTS.md"><img src="https://img.shields.io/badge/Agents-33%20Specialists-a855f7?style=for-the-badge" alt="Agents"></a>
+  <a href="skills/"><img src="https://img.shields.io/badge/Skills-450+%20Bindings-f97316?style=for-the-badge" alt="Skills"></a>
+  <a href="https://github.com/goharabbas321/zeoel"><img src="https://img.shields.io/badge/Claude%20Code-Ready-D97757?style=for-the-badge&logo=anthropic" alt="Claude Code Ready"></a>
+</p>
 
-Works with **Claude Code** · **Cursor** · **Gemini CLI** · **GitHub Copilot** · **Antigravity** · and more
+**Zeoel-AI** is a production-grade, multi-agent SaaS software engineering agency. Instead of single, fragile LLM prompts that lose context, Zeoel-AI coordinates a complete team of 33 specialized agents (UX designers, database architects, systems engineers, security auditors, QA engineers, etc.) to brainstorm, plan, build, and verify entire software projects automatically.
 
-[Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [The 33 Agents](#-the-33-specialized-agents) · [450+ Skills](#-450-curated-skills) · [Contributing](CONTRIBUTING.md)
+[Quick Start](#-quick-start) • [The 4-Phase Pipeline](#-the-4-phase-pipeline) • [Smart Model Routing](#%EF%B8%8F-smart-model-routing) • [Optimization Protocols](#-optimization-protocols) • [33-Agent Roster](#-the-33-agent-roster) • [CLI Reference](#-cli-commands) • [User Manual](USER_MANUAL.md)
 
 </div>
 
 ---
 
+### Why Zeoel-AI?
+
+> "Traditional AI coding assistants struggle with complexity because a single model prompt is asked to be the architect, developer, tester, and security auditor simultaneously. Zeoel-AI decouples these roles. It translates a product brief into a granular sprint roadmap and dispatches specialized sub-agents with dedicated skill bindings. Every piece of code is written via strict TDD, reviewed by security agents, and validated by QA—saving thousands in tokens and preventing bugs before they reach production."
+
+---
+
 ## ⚡ Quick Start
 
+### 1. Install Globally
+Install the package globally via npm:
 ```bash
-# Initialize Zeoel in any project directory
-npx zeoel-framework init
-
-# Open your AI coding tool and start building
-# "I want to build a SaaS dashboard with auth and billing"
+npm install -g zeoel-ai
 ```
 
-That's it. Zeoel takes over — brainstorming, planning sprints, dispatching specialized agents, writing tests first, and verifying quality before shipping.
+### 2. Initialize a Workspace
+Navigate to any new or existing codebase directory, and run the configuration wizard:
+```bash
+cd your-project
+zeoel
+```
+The wizard will:
+* 🔍 Scan for locally installed CLI engines (`claude`, `opencode`, `codex`, `agy`, `qwen`, `mimo`).
+* ⚙️ Configure your primary engine and map available models.
+* 📂 Initialize standard workspace directories (`frontend/`, `backend/`, `docs/`, `.worktrees/`).
+* 💾 Create `zeoel.config.json` configuration and setup local script shims under `.zeoel/`.
 
-> 📖 See **[USER_MANUAL.md](USER_MANUAL.md)** for the full guide and **[SETUP.md](SETUP.md)** for platform-specific setup.
+### 3. Start Brainstorming
+Open `.zeoel/start.md` in your text editor, write your product prompt inside the markdown comment block, and run:
+```bash
+# macOS / Linux
+.zeoel/commands/start.sh
+
+# Windows
+.zeoel\commands\start.cmd
+```
 
 ---
 
-## 🤔 Why Zeoel?
+## 🔄 The 4-Phase Pipeline
 
-Most AI coding tools use a single monolithic prompt. You tell them to "build a SaaS app" and they dump out untested, unstructured code — that's **vibe-coding**. **Zeoel is different.**
+Zeoel-AI enforces a strict software delivery pipeline with file-based checkpoints at every phase boundary.
 
-| Feature | Plain AI Tool | Zeoel Framework |
-|---|:---:|:---:|
-| Structured 4-phase pipeline | ❌ | ✅ |
-| 33 specialized agents (frontend, backend, QA, DevOps...) | ❌ | ✅ |
-| 🧠 Smart Config Inference (reads your prompt, skips questions) | ❌ | ✅ |
-| 💡 Intelligent Model Routing (auto-selects cheapest LLM per task) | ❌ | ✅ |
-| 🪓 Caveman & Graphify token compression (save up to 75% output and 71.5x input tokens) | ❌ | ✅ |
-| Cybersecurity, Growth Marketing, McKinsey Slides & PhD Research | ❌ | ✅ |
-| Strict TDD enforcement (Red-Green-Refactor) | ❌ | ✅ |
-| Sprint planning with progress tracking | ❌ | ✅ |
-| Automatic code containment (`frontend/` + `backend/`) | ❌ | ✅ |
-| Git worktree snapshots per sprint | ❌ | ✅ |
-| 450+ curated skills library | ❌ | ✅ |
-| Security audits + SEO audits built-in | ❌ | ✅ |
-| Cross-platform (Claude Code, Cursor, Gemini CLI, Copilot, Antigravity) | ❌ | ✅ |
+```
+                  THE ZEOEL-AI ORCHESTRATION PIPELINE
+                  
+  [ Phase 1: Brainstorm ] ──> [ Phase 2: Sprint Plan ] ──> [ Phase 3: Execute (TDD) ] ──> [ Phase 4: Verify & Ship ]
+         │                             │                              │                             │
+         v                             v                              v                             v
+  • Gohar (CEO) Leads           • granular task breakdowns      • Strict red-green-refactor   • QA & Security audits
+  • Capability verification     • auto-generated scripts        • isolative file-edits        • snapshot release branches
+  • output: PROJECT_BRIEF.md    • output: docs/sprint-N/        • Graphify context isolation  • output: done.md
+```
+
+### 1. Brainstorming (`zeoel-brainstorm`)
+* **Gohar (CEO)** leads a structured debate between the relevant agent specialists inside the terminal.
+* Gohar performs a **Capability & Resource Check**, warning you of any missing skills or API resources, and proposes alternative architectures.
+* Clarifying questions are written to `.zeoel/questions/questions.md`. The user answers in `.zeoel/answers/answers.md` to finalize constraints.
+* **Deliverables**: `PROJECT_BRIEF.md` (detailed specification) and `docs/brainstorm/summary.md`.
+
+### 2. Sprint Planning (`zeoel-sprint-planner`)
+* Gohar plans the entire development roadmap, decomposing features into **10-20 highly granular, bite-sized tasks** per sprint (migrations, routing, components, etc.).
+* Creates executable shell scripts for each task under `docs/sprint-N/tasks/task_K.sh`.
+* Generates a semantic representation of the codebase using:
+  ```bash
+  /graphify . --wiki
+  ```
+* **Deliverables**: `docs/sprint-N/plan.md`, `docs/sprint-N/progress.md`, and `docs/sprint-N/deferred.md`.
+
+### 3. TDD Execution (`zeoel-dispatch`)
+* Tasks are executed sequentially on isolated sprint branches (`feature/sprint-N`).
+* Sub-agents run in a strict **Test-Driven Development (TDD)** loop: write failing test (Red), implement minimum code to pass (Green), and optimize (Refactor).
+* All source code changes are restricted to the `frontend/` or `backend/` directories.
+* Sub-agents log findings in `PROJECT_BRIEF.md` and incrementally update codebase context with `/graphify . --update`.
+
+### 4. Verification & Shipping
+* **QA Signoff**: **Muhammad** validates test suites and runs E2E coverage.
+* **Security Signoff**: **Hamid** runs EVM checks and OWASP security scans.
+* **SEO Signoff**: **Zara** audits public page meta-tags and JSON-LD schemas.
+* Gohar merges the branch, generates `docs/sprint-N/done.md`, and creates a runnable worktree archive in `.worktrees/sprint-N`.
 
 ---
 
-## 🔄 How It Works
+## ⚙️ Smart Model Routing
 
-Zeoel follows a disciplined 4-phase pipeline — no shortcuts, no vibe-coding. Works natively with **Claude Code sub-agents**, **Cursor**, **Gemini CLI**, and **GitHub Copilot**:
+Zeoel-AI maps agent capabilities to specific LLM models via `zeoel.config.json`. Mappings can be fully customized by the user:
 
+```json
+{
+  "primary_engine": "claude",
+  "available_engines": {
+    "claude": {
+      "path": "/usr/local/bin/claude",
+      "models": ["claude-3-5-sonnet", "claude-3-opus", "claude-3-5-haiku"]
+    },
+    "opencode": {
+      "path": "/usr/local/bin/opencode",
+      "models": ["deepseek-v4-pro", "qwen3.7-max", "deepseek-v4-flash"]
+    }
+  },
+  "model_mapping": {
+    "primary_design_brain": { "engine": "agy", "model": "claude-3-opus" },
+    "design_polish_ux_review": { "engine": "agy", "model": "claude-3-5-sonnet" },
+    "frontend_builder": { "engine": "mimo", "model": "mimo-v2.5-pro" },
+    "primary_security_reviewer": { "engine": "codex", "model": "gpt-5.5" },
+    "primary_backend_builder": { "engine": "opencode", "model": "deepseek-v4-pro" },
+    "fast_bug_fixing": { "engine": "opencode", "model": "deepseek-v4-flash" }
+  }
+}
 ```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  BRAINSTORM  │───▶│    PLAN     │───▶│   EXECUTE   │───▶│   VERIFY    │
-│              │    │             │    │             │    │             │
-│ CEO debates  │    │ Sprint      │    │ Agents      │    │ QA tests    │
-│ with all     │    │ decomp,     │    │ dispatched   │    │ Security    │
-│ 33 agents    │    │ task cards  │    │ with TDD    │    │ SEO audit   │
-│              │    │ feature     │    │ Red-Green-  │    │ Worktree    │
-│ PROJECT_     │    │ branch      │    │ Refactor    │    │ snapshot    │
-│ BRIEF.md     │    │ created     │    │             │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-```
 
-### Phase 1: Brainstorm — with Smart Config Inference
-**Gohar (CEO)** reads your prompt and **auto-detects** your stack preferences (framework, database, testing style) — no 20-question surveys. He asks only what he can't figure out, then leads a debate between all agents to define scope. Produces `PROJECT_BRIEF.md`.
-
-### Phase 2: Sprint Planning — with Graphify Codebase Context Mapping
-Decomposes the brief into actionable sprints. **At the start of Phase 2, Gohar runs `/graphify . --wiki` to build/update the codebase's semantic knowledge map**, creating a 71.5x input token reduction. Gohar assigns each task to a specific sub-agent with its recommended model tier.
-
-### Phase 3: Execution — with Caveman Prompt Compression
-Each agent is dispatched to complete its task. **To save up to 75% on output tokens, all agents strictly follow `/caveman` prompting rules**, writing in technical, telegraphic style. Strict TDD is enforced — tests first, then logic in `frontend/` and `backend/` only. After edits, `/graphify . --update` updates the codebase map.
-
-### Phase 4: Verification & Snapshot
-QA tests, security audits, SEO audits, and final code reviews are run by QA, Security, and SEO specialists. Once passed, the branch merges to `main` and the sprint is archived to `.worktrees/sprint-N/`.
+If a mapping is omitted, Zeoel-AI falls back to **Complexity-Tier Auto-Routing**:
+* 🟢 **Light Tasks**: Routed to fast, low-cost flash models (e.g., `deepseek-v4-flash`, `claude-3-5-haiku`).
+* 🟡 **Standard Tasks**: Routed to professional builder models (e.g., `claude-3-5-sonnet`, `qwen3.7-max`).
+* 🔴 **Complex Tasks**: Routed to advanced reasoning and flagship models (e.g., `claude-3-opus`, `gpt-5.5`).
 
 ---
 
-## 🧠 Smart Config Inference
+## 🚀 Optimization Protocols
 
-Most frameworks ask you a dozen setup questions before you even start. **Zeoel reads your prompt and figures it out.**
-
+### 🧠 Graphify (Context Isolation)
+Before dispatching a task, Zeoel-AI queries the semantic knowledge graph:
+```bash
+/graphify query "auth middleware and database connection"
 ```
-You: "Build me a SaaS dashboard with auth and Stripe billing"
+This isolates exact code boundaries and dependencies, delivering up to **71.5x input token savings** by preventing agents from reading unrelated files.
 
-Gohar: 
-═══════════════════════════════════════════
-  🔍 SMART CONFIG — Auto-detected from your prompt
-═══════════════════════════════════════════
-  ✅ Stack:     Full-stack (detected: "auth and billing")
-  ✅ Frontend:  Next.js (detected: "SaaS dashboard")
-  ✅ Backend:   Laravel (detected: "billing" → SaaS default)
-  ✅ Database:  PostgreSQL (detected: "SaaS" → multi-tenant)
-  ✅ Testing:   Strict TDD (default)
-  ✅ Snapshots: Yes (default)
-  ❓ Mobile:    Not mentioned — do you need one?
-═══════════════════════════════════════════
-```
-
-**One prompt. Zero friction. Full control.** If Gohar gets something wrong, just tell him to change it.
+### 💀 Caveman (Telegraphic Output)
+Instructs sub-agents to communicate in a highly compressed, telegraphic syntax:
+* Byte-preserved file diff blocks only.
+* Zero conversational filler, greetings, or explanations.
+* Saves up to **75% output token usage** and speeds up execution times.
 
 ---
 
-## 💡 Intelligent Model Routing
+## 👥 The 33-Agent Roster
 
-Why burn Opus/o3 tokens on a README update? Zeoel assigns a **complexity tier** to every task and recommends the cheapest model that can do the job:
+Zeoel-AI organizes agents into specialized departments. You can view the full capabilities in [AGENTS.md](AGENTS.md).
 
-| Tier | When | Example Models | Cost |
-|------|------|---------------|------|
-| 🟢 **Light** | Docs, config, boilerplate, simple tests | `claude-3.5-haiku`, `gpt-4o-mini`, `gemini-flash` | 💰 |
-| 🟡 **Standard** | Components, APIs, CRUD, UI, unit tests | `claude-sonnet-4`, `gpt-4o`, `gemini-2.5-pro` | 💰💰 |
-| 🔴 **Complex** | Architecture, security, debugging, 3D, ML | `claude-opus-4`, `o3`, `gemini-2.5-pro` (thinking) | 💰💰💰 |
+<details>
+<summary>💼 <strong>1. Management & Operations</strong></summary>
 
-Every task in the sprint plan includes its tier, so you know exactly where your tokens are going:
-
-```
-═══════════════════════════════════════════
-  DISPATCHING: Karar (Sr. Frontend Engineer)
-  Task: #4 — Build the pricing page
-  Skills: nextjs-turbopack, frontend-design
-  Tests: Component test + route test
-  Model Tier: 🟡 Standard
-  Recommended: claude-sonnet-4
-═══════════════════════════════════════════
-```
-
-**Result**: Up to 60% fewer tokens on a typical sprint by routing simple tasks to fast, cheap models.
-
----
-
-## 👥 The 33 Specialized Agents
-
-Each agent has a distinct persona, curated skill pack, and defined responsibility:
-
-| | Role | Name | Specialty & Tech Stack |
+| Agent | Role | Specialty | Primary Skills (⭐) |
 |---|---|---|---|
-| 👑 | CEO & Orchestrator | **Gohar** | Sprint planning, agent dispatch, worktree snapshots, caveman, graphify |
-| 🎨 | Product Designer | **Mahdi** | UX flows, accessibility, SEO-first design, frontend-design |
-| 🖌 | Visual Director | **Mustafa** | Three.js, GSAP, premium styling, Framer Motion, design tokens |
-| ⚛️ | Sr. Frontend Engineer | **Karar** | Next.js App Router, shadcn/ui, 3D, GSAP, SEO, Tailwind, TDD |
-| 🥾 | Bootstrap UI Architect | **Hassan** | Bootstrap 5, SCSS, responsive grid, dashboard layouts |
-| 💠 | shadcn/UI Specialist | **Noor** | shadcn/ui, Radix, Tailwind v4, custom design tokens, CVA |
-| ⚛️ | React UI Craftsman | **Anas** | React 19, Vite SPAs, Zustand, Jotai, TanStack Query, GSAP |
-| 🟢 | Vue/Nuxt Architect | **Amina** | Vue 3 Composition API, Nuxt 4, Pinia, SSR, Vite, dynamic forms |
-| 🎨 | Pixel-Perfect CSS Eng | **Hasan** | CSS Grid/Subgrid, Container queries, View Transitions, OkLCH |
-| 🔧 | Backend Engineer | **Tariq** | Laravel, PostgreSQL, SaaS billing, REST/GraphQL APIs |
-| 📝 | Content & SEO | **Zara** | Technical SEO, keyword strategy, JSON-LD, content marketing |
-| 📱 | Mobile Developer | **Abdullah** | Flutter, Material 3, Riverpod, Kotlin, Swift |
-| 🌐 | React Native Specialist | **Zayd** | React Native, Expo, native integration, performance |
-| 📊 | Data & ML Engineer | **Fatima** | Postgres analytics, ML pipelines, ClickHouse, Python |
-| 🐍 | Python Engineer | **Abbas** | Python, Django, FastAPI, Scikit-learn, Celery |
-| ⚙️ | Systems Engineer | **Bilal** | Go, Rust, C++, high-performance networking |
-| 🍏 | iOS Developer | **Layla** | SwiftUI, Swift concurrency, CoreData |
-| 🤖 | Android Developer | **Hamza** | Kotlin, Jetpack Compose, clean architecture |
-| 🏥 | Healthcare Engineer | **Khadija** | HIPAA compliance, EMR integration, FHIR |
-| ⛓️ | Web3 Engineer | **Salman** | Smart contracts, DeFi, AMM security, Solidity, OpenZeppelin |
-| 🛡️ | Cybersecurity Expert | **Hamid** | Offensive security, red teaming, pen testing, EVM static analysis, cryptography |
-| 📈 | Growth Hacker | **Farhan** | Conversion rate optimization (CRO), high-persuasion copywriting, local geo-SEO |
-| 📊 | Slide Deck Designer | **Taha** | McKinsey PowerPoint design, MECE presentation Outlines, Chart.js slides |
-| 📐 | Comput. Spatial Expert | **Sami** | Parametric CAD algorithms, GeoJSON geometry bounds, spatial-GIS coordinates |
-| 🔬 | Principal PhD Researcher | **Yahya** | Google Scholar paper mappings, academic literature matrices, LaTeX/APA reports |
-| 🔍 | Debugger & Performance | **Sajjad** | Systematic 4-phase debugging, performance profiling, error-handling |
-| 📚 | Docs & API Writer | **Baqir** | Technical writing, OpenAPI specs, developer experience |
-| 🧪 | QA Engineer | **Muhammad** | Playwright, Cypress, strict TDD enforcement |
-| 🛡️ | DevOps & Security | **Ali** | Docker, GitHub Actions, OWASP, CI/CD pipelines |
-| 🧠 | AI Architect | **Ibrahim** | Multi-agent setups, MCP servers, LLM evaluations, self-evolution |
-| ☕ | Enterprise Java | **Yusuf** | Spring Boot, Quarkus, enterprise patterns |
-| 💼 | Business Operations | **Maryam** | SaaS billing ops, logistics, startup metrics |
-| 📋 | Product Manager | **Zainab** | Agile sprint management, user story mapping, backlog grooming |
+| **Gohar** | CEO & Orchestrator | Roadmap, Sprints, Codebase Checkpoints | `zeoel`, `caveman`, `graphify` |
+| **Zainab** | Product Manager | Agile backlog, User Stories, Retros | `project-flow-ops`, `product-lens` |
+| **Maryam** | SaaS Ops Specialist | Metric-driven analytics, Business models | `saas-ops` |
 
-*All agent names are inspired by Ahle Bait (a.s.) and the Zeoel team.*
+</details>
+
+<details>
+<summary>🎨 <strong>2. Design & User Experience</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Mahdi** | Product Designer | UX wireframes, User flows, accessibility audits | `frontend-design`, `seo` |
+| **Mustafa** | Visual Director | WebGL, GSAP, interactive animations | `frontend-design`, `ui-ux-pro-max`, `threejs-webgl` |
+| **Hasan** | CSS Craftsman | Container queries, Transitions, Flex/Grid layouts | `css-container-queries`, `tailwindcss-v4` |
+
+</details>
+
+<details>
+<summary>⚛️ <strong>3. Frontend Engineering</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Karar** | Sr. Frontend Engineer | Next.js, Radix primitives, Tailwind | `nextjs-turbopack`, `test-driven-development` |
+| **Anas** | React Developer | Vite SPAs, Zustand client state | `vite-patterns`, `frontend-design`, `caveman`, `graphify` |
+| **Noor** | shadcn/UI Craftsman | Radix UI primitives, design token bindings | `shadcn-ui-patterns`, `radix-ui-primitives` |
+| **Amina** | Vue/Nuxt Architect | Vue 3 composition, Nuxt 4 SSR | `vue3-composition-patterns`, `nuxt4-patterns` |
+| **Hassan** | Bootstrap Builder | SCSS styling, Bootstrap 5 dashboards | `bootstrap-patterns`, `frontend-design` |
+
+</details>
+
+<details>
+<summary>🔧 <strong>4. Backend & Systems</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Tariq** | Backend Engineer | Laravel, PostgreSQL, APIs, Stripe integration | `laravel-patterns`, `test-driven-development` |
+| **Abbas** | Python Developer | Django, FastAPI, async task queues | `python-patterns`, `test-driven-development` |
+| **Bilal** | Systems Engineer | Go, Rust, C++ high-performance services | `go-patterns` |
+| **Yusuf** | Enterprise Java | Spring Boot, Quarkus, microservices | `java-patterns` |
+| **Fatima** | Data Architect | Postgres schemas, OLAP, ClickHouse, ML | `postgres-patterns`, `python-patterns` |
+
+</details>
+
+<details>
+<summary>📱 <strong>5. Mobile Engineering</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Abdullah** | Flutter Developer | Multi-platform Flutter, Riverpod, Dart | `dart-flutter-patterns` |
+| **Zayd** | React Native Developer | Expo, Native modules, JavaScript | `react-native-best-practices` |
+| **Layla** | iOS Developer | SwiftUI, Swift Concurrency, native iOS | `swift-patterns` |
+| **Hamza** | Android Developer | Kotlin, Jetpack Compose, native Android | `kotlin-patterns` |
+
+</details>
+
+<details>
+<summary>🛡️ <strong>6. Security, QA & DevOps</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Hamid** | Security Auditor | OWASP audits, EVM auditing, Pen testing | `claude-red`, `trailofbits-auditing` |
+| **Muhammad** | QA Lead | Unit, Integration, E2E playbooks | `e2e-testing`, `test-driven-development` |
+| **Ali** | DevOps Engineer | CI/CD pipelines, Docker, Cloud orchestration | `deployment-patterns` |
+| **Ibrahim** | AI Architect | Multi-agent frameworks, custom MCP servers | `mcp-patterns`, `self-evolution` |
+
+</details>
+
+<details>
+<summary>📊 <strong>7. Domain & Marketing Specialists</strong></summary>
+
+| Agent | Role | Specialty | Primary Skills (⭐) |
+|---|---|---|---|
+| **Khadija** | Healthcare Expert | HIPAA, FHIR integrations, compliance | `healthcare-compliance` |
+| **Salman** | Web3 & Smart Contracts | Solidity, EVM protocols, DeFi mechanics | `solidity-patterns`, `trailofbits-auditing` |
+| **Zara** | Technical SEO Expert | JSON-LD, PageSpeed, metadata audits | `seo`, `seo-growth` |
+| **Farhan** | Growth Marketer | CRO, Landing page copy, funnel mapping | `growth-marketing`, `seo-growth` |
+| **Taha** | Slides & PPT Designer | McKinsey HTML decks, Chart.js templates | `ppt-mckinsey`, `ckm:slides` |
+| **Sami** | GIS & Spatial Designer | PostGIS, GeoJSON, parametric architecture | `computational-architecture`, `postgres-patterns` |
+| **Yahya** | Research Scientist | Scientific literature, empirical analysis | `empirical-research`, `deep-research` |
+| **Sajjad** | Systematic Debugger | Log trace, stack trace, bug resolution | `systematic-debugging`, `error-handling` |
+| **Baqir** | Technical Writer | OpenAPI specs, developer docs, wiki mapping | `zeoel-codebase-knowledge`, `api-design` |
+
+</details>
 
 ---
 
-## 📚 450+ Curated Skills
+## 🖥️ CLI Commands
 
-Zeoel ships with **450+ production-ready skills** covering every aspect of modern software development:
+```bash
+# Launch workspace initialization / configuration wizard
+zeoel
 
-<details>
-<summary><strong>🎨 Frontend & Design (75+ skills)</strong></summary>
+# List all discovered agents in current registry
+zeoel agent list
 
-`nextjs-turbopack` · `tailwindcss-v4` · `shadcn-ui-patterns` · `radix-ui-primitives` · `gsap-scrolltrigger` · `threejs-webgl` · `react-three-fiber` · `motion-framer` · `react-spring-physics` · `lottie-animations` · `animated-component-libraries` · `barba-js` · `locomotive-scroll` · `pixijs-2d` · `babylonjs-engine` · `spline-interactive` · `view-transitions-api` · `css-container-queries` · `design-tokens-system` · `micro-interactions` · `liquid-glass-design` · `modern-web-design` · `ui-ux-pro-max` · `frontend-design` · `frontend-patterns` · `figma-to-code` · `responsive-email-templates` · `vite-patterns` · `nuxt4-patterns` · `angular-developer` · `motion-design` · `material-3-skill` · `swiss-design-skill` · `taste-skill` · `transitions.dev` · and more...
-</details>
+# Inspect a specific agent's prompt, skills, and configuration
+zeoel agent inspect karar-frontend
 
-<details>
-<summary><strong>🔧 Backend & Infrastructure (60+ skills)</strong></summary>
+# Execute a dry-run task for a specific agent
+zeoel agent run karar-frontend "Design responsive navbar"
 
-`laravel-patterns` · `laravel-security` · `laravel-tdd` · `nestjs-patterns` · `fastapi-patterns` · `django-patterns` · `springboot-patterns` · `postgres-patterns` · `redis-patterns` · `prisma-patterns` · `supabase-patterns` · `drizzle-orm-patterns` · `trpc-patterns` · `graphql-patterns` · `stripe-billing-patterns` · `oauth2-auth-patterns` · `rate-limiting-patterns` · `websocket-realtime` · `queue-patterns` · `docker-patterns` · `deployment-patterns` · `mysql-patterns` · and more...
-</details>
+# Execute a live task with real LLM calls
+zeoel agent run karar-frontend "Design responsive navbar" --live
 
-<details>
-<summary><strong>📱 Mobile (15+ skills)</strong></summary>
-
-`dart-flutter-patterns` · `kotlin-patterns` · `kotlin-coroutines-flows` · `swiftui-patterns` · `swiftui-pro` · `compose-multiplatform-patterns` · `android-clean-architecture` · `mobile-app-design` · `mobile-app-ui-design` · and more...
-</details>
-
-<details>
-<summary><strong>🤖 AI & Agents (25+ skills)</strong></summary>
-
-`mcp-server-patterns` · `mcp-builder` · `mcp-server-builder` · `rag-pipeline` · `prompt-engineering` · `vercel-ai-sdk` · `pytorch-patterns` · `agentic-engineering` · `autonomous-loops` · `agent-teams` · `cost-aware-llm-pipeline` · `self-evolution` · `memento-skills` · and more...
-</details>
-
-<details>
-<summary><strong>🔐 Security & Testing (35+ skills)</strong></summary>
-
-`test-driven-development` · `e2e-testing` · `security-review` · `security-scan` · `hipaa-compliance` · `systematic-debugging` · `error-handling` · `webapp-testing` · `claude-red` · `trailofbits-auditing` · `waza-habits` · and more...
-</details>
-
-<details>
-<summary><strong>📐 Computational & Technical Sciences (10+ skills)</strong></summary>
-
-`computational-architecture` · `postgres-patterns` · `python-patterns` · and more...
-</details>
-
-<details>
-<summary><strong>📊 Data & DevOps (30+ skills)</strong></summary>
-
-`postgres-patterns` · `clickhouse-io` · `redis-patterns` · `docker-patterns` · `deployment-patterns` · `git-workflow` · `github-ops` · and more...
-</details>
-
-<details>
-<summary><strong>💼 Business & Operations (50+ skills)</strong></summary>
-
-`seo` · `content-engine` · `market-research` · `investor-materials` · `finance-billing-ops` · `customer-billing-ops` · `email-ops` · `growth-marketing` · `seo-growth` · `ppt-mckinsey` · `empirical-research` · `deep-research` · and more...
-</details>
-
-> 📂 Browse all skills: [`all-skills/`](all-skills/) or [`.agents/skills/zeoel/skills/`](.agents/skills/zeoel/skills/)
-
----
-
-## 🏗️ Architecture & Codebase Containment
-
-Zeoel enforces strict directory structure for clean, maintainable projects:
-
-```
-your-project/
-├── frontend/              # All frontend code (Next.js, React, etc.)
-├── backend/               # All backend code (Laravel, APIs, etc.)
-├── .worktrees/            # Runnable snapshots of completed sprints
-│   ├── sprint-1/
-│   └── sprint-2/
-├── docs/
-│   ├── brainstorm/        # Phase 1 outputs
-│   └── sprint-N/          # Sprint plans & progress trackers
-├── PROJECT_BRIEF.md       # Master requirements document
-├── .agents/               # Zeoel framework (agents, skills, config)
-├── AGENTS.md              # Agent quick reference
-└── CLAUDE.md              # AI tool instructions
+# Execute a live task using deepseek model on opencode engine
+zeoel agent run karar-frontend "Design responsive navbar" --live --engine opencode -m deepseek-v4-pro
 ```
 
 ---
 
-## 🔌 Platform Compatibility
+## 📬 Contact & Support
 
-Zeoel works seamlessly with all major AI coding tools:
-
-| Platform | Status | Setup |
-|---|---|---|
-| **Claude Code** | ✅ Full support | `CLAUDE.md` auto-detected |
-| **Cursor** | ✅ Full support | `.cursorrules` auto-generated |
-| **Gemini CLI** | ✅ Full support | `GEMINI.md` auto-generated |
-| **GitHub Copilot** | ✅ Full support | `.github/copilot-instructions.md` |
-| **Antigravity** | ✅ Full support | `AGENTS.md` auto-detected |
-| **Windsurf** | ✅ Full support | `.windsurfrules` auto-generated |
-
----
-
-## 📝 How to Interact
-
-```
-You: "I want to build a SaaS dashboard with auth and billing"
-
-Zeoel: [Phase 1] "I'm starting the brainstorm. Let me debate with 
-       all 23 agents to define scope..."
-       
-       [Phase 2] "Here's the sprint plan with 12 tasks. Approve?"
-       
-       [Phase 3] "Dispatching Karar (Frontend) for the dashboard UI...
-                  Dispatching Tariq (Backend) for the API layer...
-                  Running TDD: 47 tests written, 47 passing ✅"
-       
-       [Phase 4] "QA passed. Security audit clean. SEO score 98.
-                  Sprint archived to .worktrees/sprint-1/"
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Whether it's a new skill, a new agent, bug fixes, or documentation improvements.
-
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for guidelines on:
-- 🆕 Adding new skills
-- 🤖 Adding new agents  
-- 🐛 Reporting bugs
-- ✨ Suggesting features
-
----
-
-## 🙏 Credits & Inspiration
-
-Zeoel stands on the shoulders of incredible open-source projects. We believe in transparency and proper attribution.
-
-See **[REFERENCES.md](REFERENCES.md)** for the full list of projects that inspired our skills and methodology, including:
-- [obra/superpowers](https://github.com/obra/superpowers) — Agentic skills methodology
-- [Anthropic Claude Code](https://github.com/anthropics/claude-code) — CLAUDE.md conventions
-- [VoltAgent](https://github.com/VoltAgent) — Skills aggregation patterns
-- And many more...
-
-> **Why "Zeoel"?** The name honors the legacy of knowledge and justice. All 23 agent names are inspired by Ahle Bait (a.s.) and the Zeoel development team.
-
----
-
-## 📬 Links & Contact
-
-- **NPM**: [zeoel-framework](https://www.npmjs.com/package/zeoel-framework)
-- **GitHub**: [goharabbas321/zeoel-framework](https://github.com/goharabbas321/zeoel-framework)
-- **Creator**: Gohar Abbas ([@goharabbas321](https://github.com/goharabbas321))
-- **Telegram**: [@goharabbas786](https://t.me/goharabbas786)
+* **GitHub**: [goharabbas321/zeoel](https://github.com/goharabbas321/zeoel)
+* **NPM**: [zeoel-ai](https://www.npmjs.com/package/zeoel-ai)
+* **Creator**: Gohar Abbas ([@goharabbas321](https://github.com/goharabbas321))
+* **Telegram**: [@goharabbas786](https://t.me/goharabbas786)
 
 ---
 
 ## 📄 License
 
 MIT © [Gohar Abbas](https://github.com/goharabbas321)
-
----
-
-<div align="center">
-
-**If Zeoel saves you time, consider giving it a ⭐**
-
-Built with ❤️ by the Zeoel team
-
-</div>

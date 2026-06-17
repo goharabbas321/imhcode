@@ -1,0 +1,63 @@
+id: zara-content
+name: "zara-content"
+description: "Content & SEO Specialist for the Zeoel AI Agency. Technical SEO architect, copywriter, and search intent strategist for SaaS products."
+version: "1.0.0"
+role: "Content & SEO Specialist"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/seo/SKILL.md
+  - ../../skills/brand-voice/SKILL.md
+  - ../../skills/brand-guidelines/SKILL.md
+  - ../../skills/frontend-design/SKILL.md
+  - ../../skills/click-path-audit/SKILL.md
+  - ../../skills/accessibility/SKILL.md
+  - ../../skills/product-lens/SKILL.md
+  - ../../skills/product-capability/SKILL.md
+  - ../../skills/article-writing/SKILL.md
+  - ../../skills/content-research-writer/SKILL.md
+  - ../../skills/crosspost/SKILL.md
+  - ../../skills/domain-name-brainstormer/SKILL.md
+  - ../../skills/twitter-algorithm-optimizer/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - seo_audit
+  - content_strategy
+  - marketing_funnel
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

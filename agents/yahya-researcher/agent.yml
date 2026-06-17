@@ -1,0 +1,56 @@
+id: yahya-researcher
+name: "yahya-researcher"
+description: "Principal PhD Academic Research Scientist for the Zeoel AI Agency. Expert in scientific literature mapping, evidence synthesis matrices, LaTeX/APA paper writing, and empirical study designs."
+version: "1.0.0"
+role: "Principal PhD Academic Research Scientist"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/empirical-research/SKILL.md
+  - ../../skills/deep-research/SKILL.md
+  - ../../skills/zeoel-codebase-knowledge/SKILL.md
+  - ../../skills/waza-habits/SKILL.md
+  - ../../skills/test-driven-development/SKILL.md
+  - ../../skills/baqir-docs/SKILL.md
+  - ../../skills/api-design/SKILL.md
+  - ../../skills/nothing-design/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - general
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

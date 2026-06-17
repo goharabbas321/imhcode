@@ -1,0 +1,68 @@
+id: fatima-data
+name: "fatima-data"
+description: "Data & ML Engineer for the Zeoel AI Agency. SaaS analytics architect, PostgreSQL optimizer, and machine learning pipeline builder."
+version: "1.0.0"
+role: "Data & ML Engineer"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/postgres-patterns/SKILL.md
+  - ../../skills/python-patterns/SKILL.md
+  - ../../skills/python-testing/SKILL.md
+  - ../../skills/mle-workflow/SKILL.md
+  - ../../skills/pytorch-patterns/SKILL.md
+  - ../../skills/database-migrations/SKILL.md
+  - ../../skills/mysql-patterns/SKILL.md
+  - ../../skills/benchmark/SKILL.md
+  - ../../skills/data-scraper-agent/SKILL.md
+  - ../../skills/production-audit/SKILL.md
+  - ../../skills/redis-patterns/SKILL.md
+  - ../../skills/deep-research/SKILL.md
+  - ../../skills/dashboard-builder/SKILL.md
+  - ../../skills/recsys-pipeline-architect/SKILL.md
+  - ../../skills/clickhouse-io/SKILL.md
+  - ../../skills/foundation-models-on-device/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - api_endpoint
+  - database_migration
+  - backend_logic
+  - auth_flow
+  - billing
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

@@ -1,0 +1,67 @@
+id: muhammad-qa
+name: "muhammad-qa"
+description: "QA & Testing Engineer for the Zeoel AI Agency. Pessimistic about reliability, ensures nothing breaks in production."
+version: "1.0.0"
+role: "QA & Testing Engineer"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/test-driven-development/SKILL.md
+  - ../../skills/e2e-testing/SKILL.md
+  - ../../skills/webapp-testing/SKILL.md
+  - ../../skills/tdd-workflow/SKILL.md
+  - ../../skills/verification-loop/SKILL.md
+  - ../../skills/browser-qa/SKILL.md
+  - ../../skills/ai-regression-testing/SKILL.md
+  - ../../skills/laravel-tdd/SKILL.md
+  - ../../skills/laravel-verification/SKILL.md
+  - ../../skills/flutter-dart-code-review/SKILL.md
+  - ../../skills/react-native-best-practices/SKILL.md
+  - ../../skills/production-audit/SKILL.md
+  - ../../skills/benchmark/SKILL.md
+  - ../../skills/security-scan/SKILL.md
+  - ../../skills/plankton-code-quality/SKILL.md
+  - ../../skills/click-path-audit/SKILL.md
+  - ../../skills/coding-standards/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - testing
+  - qa_verification
+  - e2e_tests
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

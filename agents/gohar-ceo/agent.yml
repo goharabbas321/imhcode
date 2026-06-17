@@ -1,0 +1,78 @@
+id: gohar-ceo
+name: "gohar-ceo"
+description: "CEO & Sprint Coordinator for the Zeoel AI Agency. Leads brainstorming, plans sprints, and coordinates the team."
+version: "1.0.0"
+role: "CEO & Sprint Coordinator"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/zeoel/SKILL.md
+  - ../../skills/zeoel-brainstorm/SKILL.md
+  - ../../skills/zeoel-sprint-planner/SKILL.md
+  - ../../skills/zeoel-dispatch/SKILL.md
+  - ../../skills/caveman/SKILL.md
+  - ../../skills/graphify/SKILL.md
+  - ../../skills/using-git-worktrees/SKILL.md
+  - ../../skills/zeoel-saas-architect/SKILL.md
+  - ../../skills/zeoel-codebase-knowledge/SKILL.md
+  - ../../skills/plan-orchestrate/SKILL.md
+  - ../../skills/best-practice/SKILL.md
+  - ../../skills/coding-standards/SKILL.md
+  - ../../skills/architecture-decision-records/SKILL.md
+  - ../../skills/git-workflow/SKILL.md
+  - ../../skills/project-flow-ops/SKILL.md
+  - ../../skills/repo-scan/SKILL.md
+  - ../../skills/codebase-onboarding/SKILL.md
+  - ../../skills/strategic-compact/SKILL.md
+  - ../../skills/team-builder/SKILL.md
+  - ../../skills/orchestration-workflow/SKILL.md
+  - ../../skills/meeting-insights-analyzer/SKILL.md
+  - ../../skills/investor-materials/SKILL.md
+  - ../../skills/investor-outreach/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - zeoel.config.json
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - .zeoel/**/*.md
+    - .zeoel/commands/*
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - .zeoel/**/*.md
+    - .zeoel/commands/*
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - sprint_planning
+  - orchestration
+  - brainstorming
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

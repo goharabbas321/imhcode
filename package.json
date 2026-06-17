@@ -1,21 +1,23 @@
 {
-  "name": "zeoel-framework",
-  "version": "3.0.1",
+  "name": "zeoel-ai",
+  "version": "1.0.0",
   "description": "33-agent AI software agency framework for Claude Code, Cursor, and Gemini CLI. Orchestrates specialized agents for SaaS Engineering, Cybersecurity (Red Team), McKinsey PPT Design, Spatial CAD/GIS, and PhD Research. Features Caveman & Graphify token-saving protocols.",
   "main": "index.js",
   "bin": {
-    "zeoel-framework": "./bin/zeoel.js"
+    "zeoel": "./bin/zeoel.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "npx vitest run"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/goharabbas321/zeoel-framework.git"
+    "url": "git+https://github.com/goharabbas321/zeoel.git"
   },
-  "homepage": "https://github.com/goharabbas321/zeoel-framework#readme",
+  "homepage": "https://github.com/goharabbas321/zeoel#readme",
   "bugs": {
-    "url": "https://github.com/goharabbas321/zeoel-framework/issues"
+    "url": "https://github.com/goharabbas321/zeoel/issues"
   },
   "keywords": [
     "ai",
@@ -61,9 +63,13 @@
   "license": "MIT",
   "files": [
     "bin/",
-    ".agents/",
+    "src/",
+    "dist/",
+    "agents/",
+    "skills/",
     ".github/",
     ".gitignore.template",
+    "tsconfig.json",
     "AGENTS.md",
     "CLAUDE.md",
     "README.md",
@@ -71,6 +77,15 @@
     "USER_MANUAL.md"
   ],
   "devDependencies": {
-    "skills": "^1.5.9"
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "skills": "^1.5.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "glob": "^11.0.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.0"
   }
 }

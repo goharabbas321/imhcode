@@ -1,4 +1,4 @@
-# Contributing to Zeoel Framework
+# Contributing to Zeoel
 
 Thank you for your interest in contributing to Zeoel! Whether you're fixing a typo, adding a new skill, or proposing a new agent — we welcome it all.
 
@@ -34,7 +34,7 @@ Skills are the core of Zeoel. Each skill is a structured SKILL.md file that teac
 1. **Fork** the repository
 2. **Create** your skill directory:
    ```
-   .agents/skills/zeoel/skills/your-skill-name/SKILL.md
+   skills/your-skill-name/SKILL.md
    ```
 3. **Follow** the SKILL.md format:
    ```markdown
@@ -58,8 +58,7 @@ Skills are the core of Zeoel. Each skill is a structured SKILL.md file that teac
    ## Anti-Patterns
    Common mistakes to avoid.
    ```
-4. **Mirror** your skill to `all-skills/your-skill-name/SKILL.md`
-5. **Submit** a PR with the `new-skill` label
+4. **Submit** a PR with the `new-skill` label
 
 **Skill Quality Checklist:**
 - [ ] Has a clear, descriptive name (use hyphens, lowercase)
@@ -75,21 +74,21 @@ Agents are specialized personas with curated skill bindings.
 
 **Steps:**
 
-1. Create the agent file in `.agents/skills/zeoel/agents/your-agent-name.md`
-2. Follow the agent template in `.agents/skills/zeoel/agents/_template.md`
-3. Define:
-   - **Name & Role** — The agent's persona
-   - **Primary Skills (⭐)** — Which skills this agent must load
-   - **Secondary Skills** — Optional supporting skills
-   - **Constraints** — What this agent should NOT do
+1. Create a new folder under `agents/your-agent-name/`
+2. Create two files: `agent.yml` (defining manifest metadata) and `SYSTEM.md` (defining system instructions)
+3. Define the metadata in `agent.yml` following the Zod schema in [src/orchestrator/schema.ts](file:///Volumes/Mac/downloads/zeoel/src/orchestrator/schema.ts):
+   - **id & name** — The agent's identifier and display name
+   - **role** — The role designation
+   - **preferred_engines & default_model** — LLM and routing configs
+   - **skills** — Paths to skill files under `skills/`
+   - **permissions** — Operations permissions (read_files, write_files, run_commands, etc.)
+   - **memory** — Memory configurations, standardizing on the common `zeoeldb` scope.
 4. Update `AGENTS.md` with the new agent entry
 5. Submit a PR with the `new-agent` label
 
-### Improving Existing Skills
-
 Found a skill that's outdated or could be better? We love improvements!
 
-1. Check the skill's current content in `.agents/skills/zeoel/skills/[name]/SKILL.md`
+1. Check the skill's current content in `skills/[name]/SKILL.md`
 2. Make your improvements (update patterns, add examples, fix errors)
 3. Submit a PR explaining what you changed and why
 
@@ -114,13 +113,13 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md) an
 
 ```bash
 # Clone the repo
-git clone https://github.com/goharabbas321/zeoel-framework.git
-cd zeoel-framework
+git clone https://github.com/goharabbas321/zeoel.git
+cd zeoel
 
 # Test the init command locally
 node bin/zeoel.js init
 
-# Make your changes in .agents/skills/zeoel/
+# Make your changes in agents/ or skills/
 ```
 
 No build step is required — Zeoel is a file-based framework.
@@ -131,7 +130,7 @@ No build step is required — Zeoel is a file-based framework.
 
 1. **Branch** from `main` with a descriptive name: `skill/tailwindcss-v4` or `fix/readme-typo`
 2. **Commit** with clear messages: `feat(skill): add tailwindcss-v4 patterns`
-3. **Test** that `npx zeoel-framework init` still works
+3. **Test** that `npx zeoel init` still works
 4. **Fill out** the PR template completely
 5. **Wait** for review — we aim to respond within 48 hours
 

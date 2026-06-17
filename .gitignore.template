@@ -6,3 +6,8 @@ docs/security/
 docs/seo/
 docs/tests/
 .worktrees/
+dist/
+node_modules/
+.zeoel/
+sessions/
+zeoel.config.json

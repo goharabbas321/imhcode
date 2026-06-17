@@ -1,0 +1,72 @@
+id: ali-devops
+name: "ali-devops"
+description: "DevOps & Security Engineer for the Zeoel AI Agency. Focuses on automation, infrastructure, CI/CD, and OWASP compliance."
+version: "1.0.0"
+role: "DevOps & Security Engineer"
+
+system_prompt: "./SYSTEM.md"
+
+skills:
+  - ../../skills/using-git-worktrees/SKILL.md
+  - ../../skills/deployment-patterns/SKILL.md
+  - ../../skills/docker-patterns/SKILL.md
+  - ../../skills/github-ops/SKILL.md
+  - ../../skills/git-workflow/SKILL.md
+  - ../../skills/security-review/SKILL.md
+  - ../../skills/security-scan/SKILL.md
+  - ../../skills/security-bounty-hunter/SKILL.md
+  - ../../skills/zeoel-security/SKILL.md
+  - ../../skills/production-audit/SKILL.md
+  - ../../skills/development-workflows/SKILL.md
+  - ../../skills/dmux-workflows/SKILL.md
+  - ../../skills/repo-scan/SKILL.md
+  - ../../skills/codebase-onboarding/SKILL.md
+  - ../../skills/zeoel-codebase-knowledge/SKILL.md
+  - ../../skills/canary-watch/SKILL.md
+  - ../../skills/gateguard/SKILL.md
+  - ../../skills/network-config-validation/SKILL.md
+  - ../../skills/homelab-network-setup/SKILL.md
+  - ../../skills/uncloud/SKILL.md
+  - ../../skills/flox-environments/SKILL.md
+  - ../../skills/cisco-ios-patterns/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - zeoeldb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - deployment
+  - security_audit
+  - ci_cd
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false
