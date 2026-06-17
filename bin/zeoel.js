@@ -482,7 +482,9 @@ function scanAssistantCLIs() {
         eng.models = models;
       }
     } catch (e) {
-      // model query failed — leave empty, will use defaults at runtime
+      // model query failed or timed out — this means the CLI is not logged in / configured
+      eng.path = null;
+      eng.models = [];
     }
   }
 
