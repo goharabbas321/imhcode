@@ -53,14 +53,30 @@ If a task involves multiple agents (e.g. a developer agent and a reviewer agent,
   if command -v zeoel >/dev/null 2>&1; then
     zeoel agent run karar-frontend "<development task description>" --engine <resolved_engine> -m <resolved_model> --live
   else
-    node "/Volumes/Mac/downloads/zeoel/bin/zeoel.js" agent run karar-frontend "<development task description>" --engine <resolved_engine> -m <resolved_model> --live
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/../../../bin/zeoel.js" ]; then
+      node "$SCRIPT_DIR/../../../bin/zeoel.js" agent run karar-frontend "<development task description>" --engine <resolved_engine> -m <resolved_model> --live
+    elif [ -f "$HOME/.zeoel/bin/zeoel" ]; then
+      "$HOME/.zeoel/bin/zeoel" agent run karar-frontend "<development task description>" --engine <resolved_engine> -m <resolved_model> --live
+    else
+      echo "❌ zeoel command or script not found!"
+      exit 1
+    fi
   fi
 
   # 2. Design Review: UX/UI Designer
   if command -v zeoel >/dev/null 2>&1; then
     zeoel agent run mahdi-designer "Review the design system & layout shell created by Karar. Verify layout, accessibility, and visual tokens." --engine <resolved_engine> -m <resolved_model> --live
   else
-    node "/Volumes/Mac/downloads/zeoel/bin/zeoel.js" agent run mahdi-designer "Review the design system & layout shell created by Karar. Verify layout, accessibility, and visual tokens." --engine <resolved_engine> -m <resolved_model> --live
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "$SCRIPT_DIR/../../../bin/zeoel.js" ]; then
+      node "$SCRIPT_DIR/../../../bin/zeoel.js" agent run mahdi-designer "Review the design system & layout shell created by Karar. Verify layout, accessibility, and visual tokens." --engine <resolved_engine> -m <resolved_model> --live
+    elif [ -f "$HOME/.zeoel/bin/zeoel" ]; then
+      "$HOME/.zeoel/bin/zeoel" agent run mahdi-designer "Review the design system & layout shell created by Karar. Verify layout, accessibility, and visual tokens." --engine <resolved_engine> -m <resolved_model> --live
+    else
+      echo "❌ zeoel command or script not found!"
+      exit 1
+    fi
   fi
   ```
 
@@ -89,7 +105,15 @@ echo ""
 if command -v zeoel >/dev/null 2>&1; then
   zeoel agent run <agent-id> "<task_description>" --engine <resolved_engine> -m <resolved_model> --live
 else
-  node "/Volumes/Mac/downloads/zeoel/bin/zeoel.js" agent run <agent-id> "<task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [ -f "$SCRIPT_DIR/../../../bin/zeoel.js" ]; then
+    node "$SCRIPT_DIR/../../../bin/zeoel.js" agent run <agent-id> "<task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  elif [ -f "$HOME/.zeoel/bin/zeoel" ]; then
+    "$HOME/.zeoel/bin/zeoel" agent run <agent-id> "<task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  else
+    echo "❌ zeoel command or script not found!"
+    exit 1
+  fi
 fi
 ```
 
@@ -110,14 +134,30 @@ echo ""
 if command -v zeoel >/dev/null 2>&1; then
   zeoel agent run <agent-1> "<primary_development_task_description>" --engine <resolved_engine> -m <resolved_model> --live
 else
-  node "/Volumes/Mac/downloads/zeoel/bin/zeoel.js" agent run <agent-1> "<primary_development_task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [ -f "$SCRIPT_DIR/../../../bin/zeoel.js" ]; then
+    node "$SCRIPT_DIR/../../../bin/zeoel.js" agent run <agent-1> "<primary_development_task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  elif [ -f "$HOME/.zeoel/bin/zeoel" ]; then
+    "$HOME/.zeoel/bin/zeoel" agent run <agent-1> "<primary_development_task_description>" --engine <resolved_engine> -m <resolved_model> --live
+  else
+    echo "❌ zeoel command or script not found!"
+    exit 1
+  fi
 fi
 
 # 2. Review / Audit / Polish
 if command -v zeoel >/dev/null 2>&1; then
   zeoel agent run <agent-2> "Review and audit the work completed by <agent-1> for task K. Verify against requirements: <task_description>." --engine <resolved_engine> -m <resolved_model> --live
 else
-  node "/Volumes/Mac/downloads/zeoel/bin/zeoel.js" agent run <agent-2> "Review and audit the work completed by <agent-1> for task K. Verify against requirements: <task_description>." --engine <resolved_engine> -m <resolved_model> --live
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [ -f "$SCRIPT_DIR/../../../bin/zeoel.js" ]; then
+    node "$SCRIPT_DIR/../../../bin/zeoel.js" agent run <agent-2> "Review and audit the work completed by <agent-1> for task K. Verify against requirements: <task_description>." --engine <resolved_engine> -m <resolved_model> --live
+  elif [ -f "$HOME/.zeoel/bin/zeoel" ]; then
+    "$HOME/.zeoel/bin/zeoel" agent run <agent-2> "Review and audit the work completed by <agent-1> for task K. Verify against requirements: <task_description>." --engine <resolved_engine> -m <resolved_model> --live
+  else
+    echo "❌ zeoel command or script not found!"
+    exit 1
+  fi
 fi
 ```
 Do NOT omit or replace this command execution logic block.

@@ -76,7 +76,7 @@ Agents are specialized personas with curated skill bindings.
 
 1. Create a new folder under `agents/your-agent-name/`
 2. Create two files: `agent.yml` (defining manifest metadata) and `SYSTEM.md` (defining system instructions)
-3. Define the metadata in `agent.yml` following the Zod schema in [src/orchestrator/schema.ts](file:///Volumes/Mac/downloads/zeoel/src/orchestrator/schema.ts):
+3. Define the metadata in `agent.yml` following the Zod schema in [src/orchestrator/schema.ts](src/orchestrator/schema.ts):
    - **id & name** — The agent's identifier and display name
    - **role** — The role designation
    - **preferred_engines & default_model** — LLM and routing configs
