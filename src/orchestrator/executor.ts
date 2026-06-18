@@ -226,10 +226,11 @@ export class AgyCLIAdapter implements EngineAdapter {
       "/opt/homebrew/bin/agy",
     ]);
 
-    const args = ["-p"];
+    const args: string[] = [];
     if (model && model !== "agy" && model !== "default") {
       args.push("--model", model);
     }
+    args.push("-p", "-");
 
     return await runCliWithStdin(binary, args, prompt, "Antigravity (agy)");
   }
@@ -250,10 +251,11 @@ export class QwenCodeCLIAdapter implements EngineAdapter {
       "/opt/homebrew/bin/qwen",
     ]);
 
-    const args = ["-p"];
+    const args: string[] = [];
     if (model && model !== "qwen" && model !== "default") {
       args.push("--model", model);
     }
+    args.push("-p", "-");
 
     return await runCliWithStdin(binary, args, prompt, "QwenCode");
   }
@@ -276,10 +278,11 @@ export class MimoCodeCLIAdapter implements EngineAdapter {
       "~/.mimo/bin/mimo",
     ]);
 
-    const args = ["-p"];
+    const args: string[] = [];
     if (model && model !== "mimo" && model !== "default") {
       args.push("--model", model);
     }
+    args.push("-p", "-");
 
     return await runCliWithStdin(binary, args, prompt, "MimoCode");
   }

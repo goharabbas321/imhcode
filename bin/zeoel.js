@@ -607,6 +607,10 @@ async function cmdSprintRun(restArgs) {
       console.log(`\n✅ Task ${task.num} execution completed successfully.`);
     } catch (err) {
       console.error(`\n❌ Error: Task ${task.num} execution script failed.`);
+      if (executionMode === 'auto') {
+        console.log('🛑 Aborting sprint execution in auto mode.');
+        process.exit(1);
+      }
       console.log('Choices:');
       console.log('  [r] Retry the current task');
       console.log('  [s] Skip / Defer the task and continue');

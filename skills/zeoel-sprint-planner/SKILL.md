@@ -82,7 +82,44 @@ If a task involves multiple agents (e.g. a developer agent and a reviewer agent,
 
 ## Shell Script Generation
 
-For every task in the sprint plan, Gohar CEO must forcefully generate a shell script file under `docs/sprint-N/tasks/task_K.sh` (e.g. `docs/sprint-1/tasks/task_1.sh`).
+For every task in the sprint plan, Gohar CEO must forcefully generate a shell script file under `docs/sprint-N/tasks/task_K.sh` (e.g. `docs/sprint-1/tasks/task_1.sh`). Additionally, Gohar CEO must forcefully generate a master sprint execution script named `run_all_tasks.sh` directly under `docs/sprint-N/run_all_tasks.sh` which executes all individual task scripts in the sprint sequentially without user prompts.
+
+### Master Run-All Script Template (`docs/sprint-N/run_all_tasks.sh`):
+```bash
+#!/bin/bash
+# Zeoel Master Sprint Execution Script - Sprint N
+# Executes all tasks sequentially.
+
+echo "🏁 Starting Master Execution for Sprint N..."
+echo ""
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Find and sort all task scripts under tasks/
+tasks=($(find "$SCRIPT_DIR/tasks" -maxdepth 1 -name "task_*.sh" | sort -V))
+
+if [ ${#tasks[@]} -eq 0 ]; then
+  echo "❌ No task scripts found in $SCRIPT_DIR/tasks!"
+  exit 1
+fi
+
+for task_script in "${tasks[@]}"; do
+  task_name=$(basename "$task_script")
+  echo "--------------------------------------------------------"
+  echo "📋 Running task: $task_name"
+  echo "--------------------------------------------------------"
+  
+  # Run the task script. If it fails, abort immediately to preserve harness integrity.
+  bash "$task_script"
+  if [ $? -ne 0 ]; then
+    echo "❌ Error: $task_name failed! Aborting sprint execution."
+    exit 1
+  fi
+done
+
+echo ""
+echo "🎉 All tasks in Sprint N executed successfully!"
+```
 
 The script file MUST contain the actual zeoel execution command(s) to run the task using the agent(s), NOT just descriptive comments or echo statements.
 
