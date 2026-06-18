@@ -36,8 +36,8 @@ To make the workflow easy for the user, Phase 1 operates as a two-step file-base
      - `EXTERNAL FINAL AUDIT` (Recommended: OpenCode Zen/opencode)
      Prompt the user to customize or approve these recommendations.
   7. Gohar must also ask the user how they wish to address any flagged capability gaps or if they prefer Plan B.
-  8. Gohar MUST write a template answers sheet directly to `.zeoel/answers/answers.md`.
-  7. **File Format for `.zeoel/questions/debate.md`**:
+  8. Gohar MUST write a template answers sheet directly to `.zeoel/answers/answers.md`. **Gohar MUST include an explicit clarifying question asking the user if they need auto task execution or they will execute manually (with Auto as the recommended default).**
+  9. **File Format for `.zeoel/questions/debate.md`**:
      ```markdown
      # Phase 1: Simulated Specialist Debate & Capability Review
 
@@ -111,7 +111,7 @@ To make the workflow easy for the user, Phase 1 operates as a two-step file-base
 - **Trigger**: User runs `.zeoel/commands/submit_answers.sh` or `.zeoel/commands/submit_answers.cmd` (which passes `Brainstorming answers: <answers>`).
 - **Actions**:
   1. Gohar reads the answers from the input.
-  2. **Save Model Mapping Configuration**: Gohar parses the chosen model mappings from the user's answers. Gohar writes these mappings directly to `zeoel.config.json` under the key `"model_mapping"` in the format `{ "model_mapping": { "role_key": { "engine": "engine_name", "model": "model_name" } } }`. If the user does not specify custom overrides or leaves it blank, Gohar saves the recommended default role-to-model/engine mappings.
+  2. **Save Model Mapping Configuration**: Gohar parses the chosen model mappings from the user's answers. Gohar writes these mappings directly to `zeoel.config.json` under the key `"model_mapping"` in the format `{ "model_mapping": { "role_key": { "engine": "engine_name", "model": "model_name" } } }`. If the user does not specify custom overrides or leaves it blank, Gohar saves the recommended default role-to-model/engine mappings. **Gohar also parses the chosen execution mode (auto vs manual) and writes `"execution_mode": "auto" | "manual"` directly to `zeoel.config.json` (defaulting to `"auto"` if unspecified).**
   3. Gohar MUST forcefully generate the final deliverables at the project root and `docs/`:
      - `PROJECT_BRIEF.md` (fully detailed requirements brief, including every feature requested or implied in the prompt with 100% completeness. It MUST end with a dedicated `## Centralized Agent Messaging & Findings Log` section where agents append findings and dependency messages).
      - `docs/brainstorm/summary.md` (summary of debate, decisions, and stack choice)

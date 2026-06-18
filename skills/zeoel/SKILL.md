@@ -148,7 +148,17 @@ Before writing any code, Gohar (CEO) MUST isolate the workspace to prevent accid
 
 ### Phase 3: Execution (zeoel-dispatch + caveman + graphify)
 
-Read and follow `skills/zeoel-dispatch/SKILL.md` to execute the sprint plan. For each task, you MUST dispatch the assigned agent by:
+During execution (Phase 3), the sprint tasks can be run using the sprint execution harness:
+
+- **Auto Mode (Default)**: Gohar CEO automatically executes all tasks in the sprint sequentially.
+- **Manual Mode**: Gohar CEO prompts for confirmation before running each task, allowing step-by-step review.
+
+To execute a sprint, run:
+```bash
+zeoel sprint run <sprint-number> [--mode auto|manual]
+```
+
+For each task in the sprint, you MUST dispatch the assigned agent by:
 
 1. Reading their agent definition from `agents/[name]/agent.yml` and `SYSTEM.md`
 2. Loading their ⭐ (starred) skill bindings, including `caveman` and `graphify`

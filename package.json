@@ -1,6 +1,6 @@
 {
   "name": "zeoel-ai",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "33-agent AI software agency framework for Claude Code, Cursor, and Gemini CLI. Orchestrates specialized agents for SaaS Engineering, Cybersecurity (Red Team), McKinsey PPT Design, Spatial CAD/GIS, and PhD Research. Features Caveman & Graphify token-saving protocols.",
   "main": "index.js",
   "bin": {

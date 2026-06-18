@@ -44,6 +44,11 @@ if (command === 'agent') {
     console.error(err.message ?? err);
     process.exit(1);
   });
+} else if (command === 'sprint') {
+  runSprintCommand(subcommand, args.slice(2)).catch((err) => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
 } else {
   // Default: framework initialization
   runInit().catch((err) => {
@@ -66,6 +71,9 @@ function printGeneralHelp() {
       --engine <cli>             → Override engine (claude|opencode|codex|agy)
       --criteria "<text>"        → Set acceptance criteria
       --output <path>            → Save session output to custom path
+
+    zeoel sprint run <sprintNum> → Run tasks in a sprint (auto by default)
+      --mode <auto|manual>       → Override default execution mode
 
     zeoel --version, -v          → Print zeoel version
     zeoel --help, -h             → Print this help message
@@ -378,6 +386,250 @@ function printAgentHelp() {
     zeoel agent run premium-ui-designer "Improve the hero section" --dry-run
     zeoel agent run security-reviewer "Audit the login flow" --live --criteria "Zero OWASP issues"
   `);
+}
+
+async function runSprintCommand(subcommand, restArgs) {
+  switch (subcommand) {
+    case 'run':
+      return cmdSprintRun(restArgs);
+    default:
+      printSprintHelp();
+      process.exit(0);
+  }
+}
+
+function printSprintHelp() {
+  console.log(`
+  zeoel sprint <subcommand>
+
+  Subcommands:
+    run [<sprint-number>] [flags]  Run tasks in a sprint
+
+  Flags for "run":
+    --mode <auto|manual>        Override the configured execution mode (auto or manual)
+
+  Examples:
+    zeoel sprint run 1
+    zeoel sprint run 2 --mode manual
+  `);
+}
+
+async function cmdSprintRun(restArgs) {
+  let sprintNumStr = restArgs.find(arg => !arg.startsWith('-'));
+  const modeIdx = restArgs.indexOf('--mode');
+  let cliMode = modeIdx >= 0 ? restArgs[modeIdx + 1] : undefined;
+
+  const cwd = process.cwd();
+
+  // 1. Auto-detect sprint number if not provided
+  let sprintNum = 1;
+  if (sprintNumStr) {
+    sprintNum = parseInt(sprintNumStr, 10);
+    if (isNaN(sprintNum)) {
+      console.error(`❌ Invalid sprint number: ${sprintNumStr}`);
+      process.exit(1);
+    }
+  } else {
+    // Try matching from PROJECT_BRIEF.md
+    const briefPath = path.join(cwd, 'PROJECT_BRIEF.md');
+    let detected = false;
+    if (fs.existsSync(briefPath)) {
+      try {
+        const briefContent = fs.readFileSync(briefPath, 'utf8');
+        const sprintMatch = briefContent.match(/Current Sprint:\s*Sprint\s*(\d+)/i);
+        if (sprintMatch) {
+          sprintNum = parseInt(sprintMatch[1], 10);
+          console.log(`🔍 Auto-detected current sprint from PROJECT_BRIEF.md: Sprint ${sprintNum}`);
+          detected = true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (!detected) {
+      // Look at existing docs/sprint-N directories
+      let maxSprint = 0;
+      try {
+        const docsDir = path.join(cwd, 'docs');
+        if (fs.existsSync(docsDir)) {
+          const files = fs.readdirSync(docsDir);
+          for (const file of files) {
+            const match = file.match(/^sprint-(\d+)$/i);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxSprint) maxSprint = num;
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+      if (maxSprint > 0) {
+        sprintNum = maxSprint;
+        console.log(`🔍 Auto-detected sprint from docs/ directory: Sprint ${sprintNum}`);
+      } else {
+        console.log(`ℹ️ No current sprint detected. Defaulting to Sprint 1.`);
+        sprintNum = 1;
+      }
+    }
+  }
+
+  // 2. Resolve execution mode
+  let executionMode = 'auto'; // default fallback
+  const configPath = path.join(cwd, 'zeoel.config.json');
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.execution_mode) {
+        executionMode = config.execution_mode;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (cliMode) {
+    if (cliMode === 'auto' || cliMode === 'manual') {
+      executionMode = cliMode;
+    } else {
+      console.warn(`⚠️ Invalid mode flag "${cliMode}". Using configured mode: ${executionMode}`);
+    }
+  }
+
+  console.log(`\n🏁 Starting Zeoel Sprint Runner`);
+  console.log(`   Sprint: ${sprintNum}`);
+  console.log(`   Mode:   ${executionMode.toUpperCase()}\n`);
+
+  const progressPath = path.join(cwd, 'docs', `sprint-${sprintNum}`, 'progress.md');
+  const tasksDir = path.join(cwd, 'docs', `sprint-${sprintNum}`, 'tasks');
+
+  if (!fs.existsSync(progressPath)) {
+    console.error(`❌ Progress tracker not found: ${progressPath}`);
+    console.error(`   Make sure Phase 2 (Sprint Planning) is complete and progress.md exists.`);
+    process.exit(1);
+  }
+
+  if (!fs.existsSync(tasksDir)) {
+    console.error(`❌ Task execution scripts directory not found: ${tasksDir}`);
+    process.exit(1);
+  }
+
+  // 3. Find and sort all task scripts
+  let taskScripts = [];
+  try {
+    const files = fs.readdirSync(tasksDir);
+    for (const file of files) {
+      const match = file.match(/^task_(\d+)\.(sh|cmd)$/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        // Avoid duplicate tasks if both .sh and .cmd exist
+        if (!taskScripts.some(t => t.num === num)) {
+          taskScripts.push({ num, file });
+        }
+      }
+    }
+  } catch (e) {
+    console.error(`❌ Failed to read task scripts: ${e.message}`);
+    process.exit(1);
+  }
+
+  taskScripts.sort((a, b) => a.num - b.num);
+
+  if (taskScripts.length === 0) {
+    console.log(`ℹ️ No task scripts found in ${tasksDir}.`);
+    process.exit(0);
+  }
+
+  // Helper function to check if task is completed in progress.md
+  const isTaskCompleted = (taskNum) => {
+    try {
+      const progressContent = fs.readFileSync(progressPath, 'utf8');
+      const lines = progressContent.split('\n');
+      for (const line of lines) {
+        if (line.includes('|')) {
+          const cells = line.split('|').map(c => c.trim());
+          if (cells.length > 2) {
+            const firstCell = cells[1];
+            if (firstCell === String(taskNum) || firstCell === `Task ${taskNum}` || parseInt(firstCell, 10) === taskNum) {
+              const statusCell = cells.find(cell => 
+                cell.includes('✅') || 
+                cell.toLowerCase().includes('done') || 
+                cell.includes('⏭️') || 
+                cell.toLowerCase().includes('deferred')
+              );
+              if (statusCell) return true;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
+
+  // 4. Run loop
+  for (let i = 0; i < taskScripts.length; i++) {
+    const task = taskScripts[i];
+    const completed = isTaskCompleted(task.num);
+
+    if (completed) {
+      console.log(`⏭️  Task ${task.num} is already completed. Skipping.`);
+      continue;
+    }
+
+    console.log(`\n────────────────────────────────────────────────────────────────`);
+    console.log(`📋 [Task ${task.num}/${taskScripts.length}] Preparing execution...`);
+    console.log(`────────────────────────────────────────────────────────────────`);
+
+    // In manual mode, ask user
+    if (executionMode === 'manual') {
+      const answer = await askQuestion(`Execute Task ${task.num}? [Y/n]: `);
+      if (answer.toLowerCase().trim() === 'n') {
+        console.log(`⏭️  Skipped Task ${task.num}.`);
+        continue;
+      }
+    }
+
+    const isWindows = process.platform === 'win32';
+    const shellScript = path.join(tasksDir, `task_${task.num}.sh`);
+    const cmdScript = path.join(tasksDir, `task_${task.num}.cmd`);
+    let runCmd = '';
+
+    if (isWindows && fs.existsSync(cmdScript)) {
+      runCmd = `"${cmdScript}"`;
+    } else {
+      runCmd = `bash "${shellScript}"`;
+    }
+
+    try {
+      console.log(`▶️  Executing: ${runCmd}`);
+      execSync(runCmd, { stdio: 'inherit', cwd });
+      console.log(`\n✅ Task ${task.num} execution completed successfully.`);
+    } catch (err) {
+      console.error(`\n❌ Error: Task ${task.num} execution script failed.`);
+      console.log('Choices:');
+      console.log('  [r] Retry the current task');
+      console.log('  [s] Skip / Defer the task and continue');
+      console.log('  [a] Abort execution loop');
+      const action = await askQuestion('Select action [r/s/a] (default: r): ');
+      const cleanAction = action.toLowerCase().trim();
+      if (cleanAction === 's') {
+        console.log(`⏭️  Skipping Task ${task.num} and continuing.`);
+        continue;
+      } else if (cleanAction === 'a') {
+        console.log('🛑 Aborted.');
+        process.exit(1);
+      } else {
+        // Retry
+        console.log(`🔄 Retrying Task ${task.num}...`);
+        i--; // decrement to run this task again in next iteration
+        continue;
+      }
+    }
+  }
+
+  console.log('\n🏁 Sprint Execution finished!');
+  console.log(`   All incomplete tasks in Sprint ${sprintNum} have been processed.`);
 }
 
 // ─── Framework Initialization (existing behavior + configuration scanning) ───
@@ -756,11 +1008,24 @@ async function runInit() {
       }
     }
 
+    let executionMode = 'auto';
+    if (isInteractive) {
+      console.log('\nChoose execution mode:');
+      console.log('  [1] Auto task execution (default)');
+      console.log('  [2] Manual execution');
+      const answer = await askQuestion('Select execution mode [1-2] (default: 1): ');
+      if (answer.trim() === '2') {
+        executionMode = 'manual';
+      }
+      console.log(`\n❇️  Selected execution mode: ${executionMode}`);
+    }
+
     // Write/Update zeoel.config.json
     const configPath = path.join(cwd, 'zeoel.config.json');
     const configData = {
       primary_engine: primaryEngine,
       default_model: defaultModel || undefined,
+      execution_mode: executionMode,
       available_engines: {}
     };
 
