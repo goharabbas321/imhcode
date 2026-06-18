@@ -717,7 +717,7 @@ function scanAssistantCLIs() {
       let raw = execSync(eng.modelsCmd(eng.path), { 
         encoding: 'utf8', 
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 3000 // Prevent hanging if command is interactive or spawns a blocking browser
+        timeout: 30000 // Prevent hanging if command is interactive or spawns a blocking browser
       });
 
       // Try JSON parse first (codex returns JSON)
