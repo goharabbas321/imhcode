@@ -169,6 +169,19 @@ export function buildPrompt(
     parts.push(section(`Project Memory (${memoryFiles.length} files)`, memoryBlock));
   }
 
+  // ── 4b. Assets & Branding Instructions ────────────────────────────────────
+  if (cwd && category === "frontend") {
+    parts.push(
+      section(
+        "Assets & Branding Integration",
+        `IMPORTANT: Check the \`.imhcode/assets/\` directory at the project root for any uploaded assets (e.g. logos, brand assets, images, text files, or raw content). ` +
+        `If any such assets exist, you MUST:\n` +
+        `1. Copy or integrate them into the frontend (e.g., \`frontend/public/\` or \`frontend/src/assets/\`).\n` +
+        `2. Use their exact content, names, and images in the user interface (instead of placeholders or generic text).`
+      )
+    );
+  }
+
   // ── 5. Task ───────────────────────────────────────────────────────────────
   parts.push(section("Task", task));
 
