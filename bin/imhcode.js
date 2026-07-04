@@ -1971,6 +1971,7 @@ async function generateStaticSprintPlans(cwd, scope, config) {
 
 async function generateSprint(cwd, sprintNum, title, tasks, testingMode, config) {
   const sprintDir = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
+  fs.mkdirSync(sprintDir, { recursive: true });
   const tasksDir  = path.join(cwd, LOCAL_DIR_NAME, 'commands', `sprint-${sprintNum}`);
   fs.mkdirSync(tasksDir, { recursive: true });
 
