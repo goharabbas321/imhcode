@@ -2228,7 +2228,7 @@ function getAssetsSummary(cwd) {
 
       if (stat.isDirectory()) {
         const subfiles = fs.readdirSync(filePath);
-        summary.push(`- Directory \`${file}/\` containing ${subfiles.length} items (e.g. ${subfiles.slice(0, 5).map(f => \`\`\${f}\`\`).join(', ')}). This contains shared reference code/implementation for this category.`);
+        summary.push(`- Directory \`${file}/\` containing ${subfiles.length} items (e.g. ${subfiles.slice(0, 5).map(f => "\`" + f + "\`").join(', ')}). This contains shared reference code/implementation for this category.`);
       } else {
         const ext = path.extname(file).toLowerCase();
         if (['.txt', '.md', '.json', '.js', '.ts', '.css', '.html', '.php', '.py'].includes(ext)) {
