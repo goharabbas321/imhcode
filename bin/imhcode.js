@@ -2020,7 +2020,7 @@ ${tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task} [\`${t.agent}\`]`).join('\n'
 # Agent:  ${t.agent} (${category})
 # Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}
 # Tier:   ${t.tier}
-CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 cd "$CWD/../../../.."
 
 TASK="${taskDesc.replace(/"/g, '\\"')}"
@@ -2044,7 +2044,7 @@ fi
 # IMH-Code — Sprint ${sprintNum}: ${title}
 # Run all tasks in dependency order with correct AI model routing
 set -e
-CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 TASKS_DIR="$CWD/tasks"
 
 echo ""
