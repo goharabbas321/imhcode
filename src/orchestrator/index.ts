@@ -132,7 +132,7 @@ const DEFAULT_MODEL_PREFERENCES: Record<string, { engines: string[]; models: str
  * Load imhcode.config.json workspace settings if it exists.
  */
 function loadConfig(cwd: string): any {
-  const configPath = path.join(cwd, "imhcode.config.json");
+  const configPath = path.join(cwd, ".imhcode", "imhcode.config.json");
   if (fs.existsSync(configPath)) {
     try {
       return JSON.parse(fs.readFileSync(configPath, "utf8"));
@@ -141,7 +141,7 @@ function loadConfig(cwd: string): any {
     }
   }
   // Fallback: check for legacy zeoel.config.json
-  const legacyPath = path.join(cwd, "zeoel.config.json");
+  const legacyPath = path.join(cwd, ".imhcode", "zeoel.config.json");
   if (fs.existsSync(legacyPath)) {
     try {
       return JSON.parse(fs.readFileSync(legacyPath, "utf8"));

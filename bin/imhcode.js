@@ -31,13 +31,13 @@ const readline = require('readline');
 const PLATFORM_NAME  = 'IMH-Code';
 const PLATFORM_FULL  = 'Imam Hussain Coding Harness Platform';
 const CLI_CMD        = 'imhcode';
-const CONFIG_FILE    = 'imhcode.config.json';
-const GLOBAL_DIR     = path.join(os.homedir(), '.imhcode');
 const LOCAL_DIR_NAME = '.imhcode';
 const DOCS_DIR       = 'docs';
+const CONFIG_FILE    = path.join(LOCAL_DIR_NAME, 'imhcode.config.json');
+const GLOBAL_DIR     = path.join(os.homedir(), '.imhcode');
 const START_MD       = path.join(DOCS_DIR, 'start.md');
 const BRAINSTORM_MD  = path.join(DOCS_DIR, 'brainstorming.md');
-const BRIEF_MD       = 'PROJECT_BRIEF.md';
+const BRIEF_MD       = path.join(DOCS_DIR, 'PROJECT_BRIEF.md');
 const CONTEXT_MD     = path.join(LOCAL_DIR_NAME, 'context.md');
 
 // ─── Entry Point ───────────────────────────────────────────────────────────────
@@ -810,7 +810,7 @@ async function cmdSprintDesign(restArgs) {
   console.log(`\n📐 ${PLATFORM_NAME} Sprint Design Check — Sprint ${sprintNum}\n`);
 
   const checks = [
-    { file: path.join(cwd, BRIEF_MD),                   label: 'PROJECT_BRIEF.md' },
+    { file: path.join(cwd, BRIEF_MD),                   label: 'docs/PROJECT_BRIEF.md' },
     { file: path.join(sprintDir, 'plan.md'),             label: `docs/sprint-${sprintNum}/plan.md` },
     { file: path.join(sprintDir, 'progress.md'),         label: `docs/sprint-${sprintNum}/progress.md` },
     { file: path.join(cwd, LOCAL_DIR_NAME, 'commands', `sprint-${sprintNum}`), label: `.imhcode/commands/sprint-${sprintNum}/` },
