@@ -1,0 +1,57 @@
+id: java-executor
+name: "Java Executor"
+description: "build Java applications using Spring Boot, Quarkus, JPA, Hibernate, and enterprise Java patterns."
+version: "1.0.0"
+role: "Java / Spring Boot Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/java-coding-standards/SKILL.md
+  - ../../skills/jpa-patterns/SKILL.md
+  - ../../skills/backend-patterns/SKILL.md
+  - ../../skills/api-design/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - backend/**
+
+supported_task_types:
+  - api
+  - database
+  - authentication
+  - microservices
+  - crud
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

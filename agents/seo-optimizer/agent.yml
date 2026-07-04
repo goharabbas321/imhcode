@@ -1,0 +1,54 @@
+id: seo-optimizer
+name: "SEO Optimizer"
+description: "perform technical SEO audits, optimize Core Web Vitals, implement structured data, and improve search engine rankings."
+version: "1.0.0"
+role: "SEO & Content Optimizer"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/seo/SKILL.md
+  - ../../skills/seo-growth/SKILL.md
+
+preferred_engines:
+  - codex
+  - claude
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: gpt-5.5
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - seo_audit
+  - performance
+  - content
+  - structured_data
+  - sitemap
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

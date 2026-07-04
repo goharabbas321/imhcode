@@ -1,0 +1,54 @@
+id: flutter-executor
+name: "Flutter Executor"
+description: "build cross-platform mobile applications using Flutter, Dart, Riverpod, and Material Design 3."
+version: "1.0.0"
+role: "Flutter / Dart Mobile Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/dart-flutter-patterns/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - mobile_screen
+  - state_management
+  - navigation
+  - ui_component
+  - api_integration
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

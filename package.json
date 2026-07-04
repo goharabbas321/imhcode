@@ -1,10 +1,10 @@
 {
-  "name": "zeoel-ai",
-  "version": "1.0.8",
-  "description": "33-agent AI software agency framework for Claude Code, Cursor, and Gemini CLI. Orchestrates specialized agents for SaaS Engineering, Cybersecurity (Red Team), McKinsey PPT Design, Spatial CAD/GIS, and PhD Research. Features Caveman & Graphify token-saving protocols.",
+  "name": "imhcode",
+  "version": "1.0.0",
+  "description": "IMH-Code — Imam Hussain Coding Harness Platform. A fast-first multi-agent AI coding framework with intelligent model routing. 19 generic role-based agents (planner, nextjs-executor, laravel-executor, etc.), configurable testing strategy, and 7 token-saving optimizations for rapid MVP development.",
   "main": "index.js",
   "bin": {
-    "zeoel": "./bin/zeoel.js"
+    "imhcode": "./bin/imhcode.js"
   },
   "scripts": {
     "build": "tsc",
@@ -13,11 +13,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/goharabbas321/zeoel.git"
+    "url": "git+https://github.com/goharabbas321/imhcode.git"
   },
-  "homepage": "https://github.com/goharabbas321/zeoel#readme",
+  "homepage": "https://github.com/goharabbas321/imhcode#readme",
   "bugs": {
-    "url": "https://github.com/goharabbas321/zeoel/issues"
+    "url": "https://github.com/goharabbas321/imhcode/issues"
   },
   "keywords": [
     "ai",
@@ -25,6 +25,10 @@
     "ai-agents",
     "multi-agent",
     "agent-framework",
+    "imhcode",
+    "imh-code",
+    "imam-hussain",
+    "coding-harness",
     "claude-code",
     "claude-code-skills",
     "claude-code-plugins",
@@ -39,8 +43,7 @@
     "saas",
     "nextjs",
     "laravel",
-    "tdd",
-    "test-driven-development",
+    "model-routing",
     "llm",
     "mcp",
     "framework",
@@ -54,12 +57,12 @@
     "code-generation",
     "ai-sprint-planning",
     "software-development-agent",
-    "vibe-coding",
-    "devin-alternative",
+    "fast-development",
+    "mvp",
     "ai-code-review",
     "automated-testing"
   ],
-  "author": "Gohar Abbas (goharabbas321)",
+  "author": "IMH-Code Team",
   "license": "MIT",
   "files": [
     "bin/",
@@ -89,3 +92,4 @@
     "zod": "^3.24.0"
   }
 }
+

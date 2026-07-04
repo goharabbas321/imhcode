@@ -1,0 +1,59 @@
+id: designer
+name: "Designer"
+description: "create exceptional user experiences, design systems, visual layouts, and UI component specifications."
+version: "1.0.0"
+role: "UX/UI Designer & Visual Architect"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/frontend-design/SKILL.md
+  - ../../skills/ui-ux-pro-max/SKILL.md
+  - ../../skills/modern-web-design/SKILL.md
+  - ../../skills/design-system/SKILL.md
+  - ../../skills/theme-factory/SKILL.md
+
+preferred_engines:
+  - mimo
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: mimo-vl-v2.5-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - ui_component
+  - page_design
+  - design_system
+  - dark_mode
+  - design_tokens
+  - landing_page
+  - styling
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

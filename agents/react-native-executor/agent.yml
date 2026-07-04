@@ -1,0 +1,53 @@
+id: react-native-executor
+name: "React Native Executor"
+description: "build cross-platform mobile apps with React Native, Expo, React Navigation, and Zustand."
+version: "1.0.0"
+role: "React Native / Expo Mobile Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/react-native-best-practices/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - mobile_screen
+  - navigation
+  - state_management
+  - api_integration
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

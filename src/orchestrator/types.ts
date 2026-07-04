@@ -1,5 +1,6 @@
 /**
- * Shared TypeScript types for the Zeoel YAML-driven agent orchestrator.
+ * Shared TypeScript types for the IMH-Code YAML-driven agent orchestrator.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  */
 
 // ─── Agent Manifest (parsed from agent.yml) ───────────────────────────────────
@@ -12,7 +13,7 @@ export interface AgentPermissions {
 }
 
 export interface AgentMemory {
-  scopes: Array<"zeoeldb" | "project" | "global" | "session">;
+  scopes: Array<"imhdb" | "project" | "global" | "session">;
   readable: string[];
   writable: string[];
 }

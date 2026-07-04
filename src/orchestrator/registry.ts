@@ -1,5 +1,6 @@
 /**
  * Agent registry: discovers and loads all agents from the agents/ directory.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  * Agents are discovered by scanning for agents/{id}/agent.yml files.
  */
 
@@ -79,60 +80,110 @@ export async function loadRegistry(
 // ─── Lookup ───────────────────────────────────────────────────────────────────
 
 /**
- * Resolves a given agent ID or alias to the canonical agent ID.
- * Handled aliases:
- * - zara-seo, zara -> zara-content
- * - farhan-growth, farhan -> farhan-marketing
- * - taha-slides, taha -> taha-presentation
- * - sami-spatial, sami -> sami-computational
- * - yahya-phd, yahya -> yahya-researcher
- * - maryam-business, maryam -> maryam-ops
- * - zainab-product-manager, zainab-pm -> zainab-pm
+ * Resolves a given agent ID or short alias to the canonical agent ID.
+ *
+ * IMH-Code Generic Agent Aliases:
+ *
+ * Core Agents:
+ *   planner, plan, pm        → planner
+ *   designer, design, ui, ux → designer
+ *
+ * Frontend Executors:
+ *   nextjs, next             → nextjs-executor
+ *   react, vite              → react-executor
+ *   vue, nuxt, vue3          → vue-executor
+ *
+ * Backend Executors:
+ *   laravel, php             → laravel-executor
+ *   python, django, fastapi  → python-executor
+ *   java, spring             → java-executor
+ *   flutter, dart            → flutter-executor
+ *   rn, expo, react-native   → react-native-executor
+ *   ios, swift, swiftui      → ios-executor
+ *   android, kotlin          → android-executor
+ *   go, rust, cpp            → systems-executor
+ *   web3, solidity           → web3-executor
+ *   devops, docker           → devops-executor
+ *
+ * Quality Agents:
+ *   tester, qa, test         → tester
+ *   security, audit          → security-auditor
+ *   seo, content             → seo-optimizer
+ *   debugger, debug, fix     → debugger
  */
 export function resolveAgentIdAlias(agentId: string): string {
   const clean = agentId.toLowerCase().trim();
+
   const aliases: Record<string, string> = {
-    "zara-seo": "zara-content",
-    "zara": "zara-content",
-    "farhan-growth": "farhan-marketing",
-    "farhan": "farhan-marketing",
-    "taha-slides": "taha-presentation",
-    "taha": "taha-presentation",
-    "sami-spatial": "sami-computational",
-    "sami": "sami-computational",
-    "yahya-phd": "yahya-researcher",
-    "yahya": "yahya-researcher",
-    "maryam-business": "maryam-ops",
-    "maryam": "maryam-ops",
-    "zainab-product-manager": "zainab-pm",
-    "zainab": "zainab-pm",
-    "gohar": "gohar-ceo",
-    "ceo": "gohar-ceo",
-    "mahdi": "mahdi-designer",
-    "mustafa": "mustafa-visual",
-    "karar": "karar-frontend",
-    "hassan": "hassan-bootstrap",
-    "noor": "noor-shadcn",
-    "anas": "anas-react",
-    "amina": "amina-vue",
-    "hasan": "hasan-css",
-    "tariq": "tariq-backend",
-    "abdullah": "abdullah-mobile",
-    "zayd": "zayd-react-native",
-    "fatima": "fatima-data",
-    "abbas": "abbas-python",
-    "bilal": "bilal-systems",
-    "layla": "layla-ios",
-    "hamza": "hamza-android",
-    "salman": "salman-web3",
-    "hamid": "hamid-security",
-    "baqir": "baqir-docs",
-    "muhammad": "muhammad-qa",
-    "ali": "ali-devops",
-    "ibrahim": "ibrahim-ai",
-    "yusuf": "yusuf-java",
-    "khadija": "khadija-healthcare"
+    // ── Core ─────────────────────────────────────────────────────────────────
+    "plan":               "planner",
+    "orchestrator":       "planner",
+    "pm":                 "planner",
+    "design":             "designer",
+    "ui":                 "designer",
+    "ux":                 "designer",
+
+    // ── Frontend Executors ────────────────────────────────────────────────────
+    "nextjs":             "nextjs-executor",
+    "next":               "nextjs-executor",
+    "next-js":            "nextjs-executor",
+    "react":              "react-executor",
+    "vite":               "react-executor",
+    "react-vite":         "react-executor",
+    "vue":                "vue-executor",
+    "nuxt":               "vue-executor",
+    "vue3":               "vue-executor",
+
+    // ── Backend Executors ─────────────────────────────────────────────────────
+    "laravel":            "laravel-executor",
+    "php":                "laravel-executor",
+    "python":             "python-executor",
+    "django":             "python-executor",
+    "fastapi":            "python-executor",
+    "flask":              "python-executor",
+    "java":               "java-executor",
+    "spring":             "java-executor",
+    "springboot":         "java-executor",
+    "quarkus":            "java-executor",
+    "flutter":            "flutter-executor",
+    "dart":               "flutter-executor",
+    "rn":                 "react-native-executor",
+    "react-native":       "react-native-executor",
+    "expo":               "react-native-executor",
+    "ios":                "ios-executor",
+    "swift":              "ios-executor",
+    "swiftui":            "ios-executor",
+    "android":            "android-executor",
+    "kotlin":             "android-executor",
+    "go":                 "systems-executor",
+    "golang":             "systems-executor",
+    "rust":               "systems-executor",
+    "cpp":                "systems-executor",
+    "c++":                "systems-executor",
+    "systems":            "systems-executor",
+    "web3":               "web3-executor",
+    "solidity":           "web3-executor",
+    "blockchain":         "web3-executor",
+    "devops":             "devops-executor",
+    "docker":             "devops-executor",
+    "cicd":               "devops-executor",
+    "deploy":             "devops-executor",
+
+    // ── Quality Agents ────────────────────────────────────────────────────────
+    "qa":                 "tester",
+    "test":               "tester",
+    "testing":            "tester",
+    "security":           "security-auditor",
+    "audit":              "security-auditor",
+    "pentest":            "security-auditor",
+    "seo":                "seo-optimizer",
+    "content":            "seo-optimizer",
+    "marketing":          "seo-optimizer",
+    "debug":              "debugger",
+    "debugging":          "debugger",
+    "fix":                "debugger",
   };
+
   return aliases[clean] || clean;
 }
 
@@ -152,7 +203,7 @@ export function getAgent(
     throw new Error(
       `❌ Agent "${agentId}" not found (resolved: "${resolvedId}").\n` +
         `  Available agents: ${available}\n\n` +
-        `  Run "zeoel agent list" to see all agents.`
+        `  Run "imhcode agent list" to see all agents.`
     );
   }
 

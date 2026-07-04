@@ -1,0 +1,58 @@
+id: vue-executor
+name: "Vue Executor"
+description: "build Vue 3 and Nuxt 4 applications with Pinia state management, SSR, and modern Vue patterns."
+version: "1.0.0"
+role: "Vue 3 / Nuxt 4 Full-Stack Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/vue3-composition-patterns/SKILL.md
+  - ../../skills/nuxt4-patterns/SKILL.md
+  - ../../skills/frontend-design/SKILL.md
+  - ../../skills/tailwindcss-v4/SKILL.md
+  - ../../skills/frontend-patterns/SKILL.md
+
+preferred_engines:
+  - mimo
+  - codex
+  - claude
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: mimo-vl-v2.5-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - ui_component
+  - ssr
+  - spa
+  - state_management
+  - full_stack
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

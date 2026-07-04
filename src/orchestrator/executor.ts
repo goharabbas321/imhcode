@@ -1,5 +1,6 @@
 /**
  * Execution engine adapters using local CLI tools.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  *
  * DryRunAdapter        — default, prints the prompt; never calls a CLI/LLM.
  * ClaudeCodeCLIAdapter — shells out to `claude -p`
@@ -379,6 +380,7 @@ export function getAdapter(
   throw new Error(
     `❌ No active CLI agent engine could be auto-detected.\n` +
       `  Supported engines: claude, opencode, codex, agy, qwen, mimo\n` +
-      `  Install one and re-run, or specify with: --engine <engine-name>`
+      `  Install one and re-run, or specify with: --engine <engine-name>\n` +
+      `  Run "imhcode --help" for more information.`
   );
 }

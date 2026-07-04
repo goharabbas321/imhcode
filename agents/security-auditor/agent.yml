@@ -1,0 +1,56 @@
+id: security-auditor
+name: "Security Auditor"
+description: "perform comprehensive security audits covering OWASP Top 10, dependency vulnerabilities, authentication flows, and API security."
+version: "1.0.0"
+role: "Security Auditor & Penetration Tester"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/imhcode-security/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - codex
+  - claude
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: gpt-5.5
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - security_audit
+  - penetration_test
+  - vulnerability_scan
+  - owasp
+  - code_review
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

@@ -1,0 +1,59 @@
+id: laravel-executor
+name: "Laravel Executor"
+description: "build Laravel applications including API routes, Eloquent models, migrations, queues, and PostgreSQL integration."
+version: "1.0.0"
+role: "Laravel Full-Stack Backend Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/laravel-patterns/SKILL.md
+  - ../../skills/backend-patterns/SKILL.md
+  - ../../skills/api-design/SKILL.md
+  - ../../skills/postgres-patterns/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - backend/**
+
+supported_task_types:
+  - api
+  - database
+  - authentication
+  - queue
+  - migration
+  - crud
+  - middleware
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

@@ -1,0 +1,56 @@
+id: planner
+name: "Planner"
+description: "handle project planning, brainstorming, sprint design, and task orchestration for the IMH-Code pipeline."
+version: "1.0.0"
+role: "Project Planner & Sprint Coordinator"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/imhcode/SKILL.md
+  - ../../skills/imhcode-brainstorm/SKILL.md
+  - ../../skills/imhcode-sprint-planner/SKILL.md
+  - ../../skills/imhcode-dispatch/SKILL.md
+  - ../../skills/imhcode-saas-architect/SKILL.md
+
+preferred_engines:
+  - claude
+  - codex
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: claude-opus-4-6
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - docs/**
+  writable:
+    - docs/**/*.md
+    - docs/**
+
+supported_task_types:
+  - sprint_planning
+  - brainstorming
+  - architecture
+  - task_decomposition
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

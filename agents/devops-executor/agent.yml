@@ -1,0 +1,56 @@
+id: devops-executor
+name: "DevOps Executor"
+description: "set up CI/CD pipelines, Docker containerization, server configuration, and deployment automation."
+version: "1.0.0"
+role: "DevOps & Deployment Engineer"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/deployment-patterns/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - backend/**
+    - .github/**
+  writable:
+    - docs/**/*.md
+    - backend/**
+    - .github/**
+
+supported_task_types:
+  - docker
+  - cicd
+  - deployment
+  - infrastructure
+  - monitoring
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

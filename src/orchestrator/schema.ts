@@ -1,5 +1,6 @@
 /**
  * Zod schema for agent.yml manifest validation.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  * Every agent must pass this schema or an actionable error is thrown.
  */
 
@@ -16,7 +17,7 @@ const AgentPermissionsSchema = z.object({
 
 const AgentMemorySchema = z.object({
   scopes: z
-    .array(z.enum(["zeoeldb", "project", "global", "session"]))
+    .array(z.enum(["imhdb", "project", "global", "session"]))
     .min(1, "At least one memory scope is required"),
   readable: z.array(z.string()).default([]),
   writable: z.array(z.string()).default([]),

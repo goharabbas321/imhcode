@@ -1,4 +1,4 @@
-# Zeoel Framework Ignore Rules
+# IMH-Code Framework Ignore Rules
 .agents/
 docs/sprint-*/
 docs/qa/
@@ -8,6 +8,8 @@ docs/tests/
 .worktrees/
 dist/
 node_modules/
-.zeoel/
-sessions/
-zeoel.config.json
+.imhcode/
+imhcode.config.json
+PROJECT_BRIEF.md
+docs/brainstorming.md
+docs/start.md

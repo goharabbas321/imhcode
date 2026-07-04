@@ -1,8 +1,8 @@
 /**
- * Public API barrel for the Zeoel orchestrator.
+ * Public API barrel for the IMH-Code orchestrator.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  *
  * Import from here in CLI code and external integrations.
- * All internal modules should be imported directly for tree-shaking.
  */
 
 // Types
@@ -57,11 +57,82 @@ import { getAdapter } from "./executor";
 import { saveSession } from "./session";
 import type { LoadedAgent, ExecutionOptions, ExecutionResult } from "./types";
 
+// ─── Agent Category Map ───────────────────────────────────────────────────────
+
 /**
- * Helper to load zeoel.config.json workspace settings if it exists.
+ * Maps agent IDs to task categories for intelligent model routing.
+ * Categories determine which model is used from imhcode.config.json model_routing.
+ */
+export const AGENT_CATEGORY_MAP: Record<string, string> = {
+  // Planning
+  "planner":               "planning",
+
+  // Frontend (visual/creative — prefer Mimo v2.5 Pro)
+  "designer":              "frontend",
+  "nextjs-executor":       "frontend",
+  "react-executor":        "frontend",
+  "vue-executor":          "frontend",
+
+  // Backend (precise code — prefer DeepSeek V4 Pro)
+  "laravel-executor":      "backend",
+  "python-executor":       "backend",
+  "java-executor":         "backend",
+  "flutter-executor":      "backend",
+  "react-native-executor": "backend",
+  "ios-executor":          "backend",
+  "android-executor":      "backend",
+  "systems-executor":      "backend",
+  "web3-executor":         "backend",
+  "devops-executor":       "backend",
+
+  // Testing (analytical — prefer GPT-5.5)
+  "tester":                "testing",
+  "security-auditor":      "testing",
+
+  // Review (analytical — prefer GPT-5.5)
+  "seo-optimizer":         "review",
+  "debugger":              "review",
+};
+
+/**
+ * Model routing: recommended models per category and engine.
+ * Preferences: Mimo v2.5 Pro → frontend, DeepSeek → backend,
+ *              GPT → testing/review, Claude → planning, DeepSeek Flash → fast
+ */
+const DEFAULT_MODEL_PREFERENCES: Record<string, { engines: string[]; models: string[] }> = {
+  frontend: {
+    engines: ["mimo", "codex", "claude", "opencode"],
+    models: ["mimo-vl-v2.5-pro", "gpt-5.5", "claude-opus-4-6", "gemini-3.5-flash"],
+  },
+  backend: {
+    engines: ["opencode", "codex", "claude", "qwen"],
+    models: ["deepseek-v4-pro", "gpt-5.5", "claude-sonnet-4-5", "qwen3-coder-max"],
+  },
+  planning: {
+    engines: ["claude", "codex", "opencode"],
+    models: ["claude-opus-4-6", "gpt-5.5", "deepseek-v4-pro"],
+  },
+  testing: {
+    engines: ["codex", "claude", "opencode"],
+    models: ["gpt-5.5", "claude-opus-4-6", "deepseek-v4-pro"],
+  },
+  review: {
+    engines: ["codex", "claude", "opencode"],
+    models: ["gpt-5.5", "claude-sonnet-4-5", "deepseek-v4"],
+  },
+  fast: {
+    engines: ["opencode", "codex", "qwen", "claude"],
+    models: ["deepseek-v4-flash", "gpt-5.4-mini", "qwen3-coder-flash", "claude-haiku-3-5"],
+  },
+};
+
+// ─── Config Loader ────────────────────────────────────────────────────────────
+
+/**
+ * Load imhcode.config.json workspace settings if it exists.
  */
 function loadConfig(cwd: string): any {
-  const configPath = path.join(cwd, "zeoel.config.json");
+  const configPath = path.join(cwd, "imhcode.config.json");
   if (fs.existsSync(configPath)) {
     try {
       return JSON.parse(fs.readFileSync(configPath, "utf8"));
@@ -69,383 +140,122 @@ function loadConfig(cwd: string): any {
       return null;
     }
   }
+  // Fallback: check for legacy zeoel.config.json
+  const legacyPath = path.join(cwd, "zeoel.config.json");
+  if (fs.existsSync(legacyPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(legacyPath, "utf8"));
+    } catch {
+      return null;
+    }
+  }
   return null;
 }
 
+// ─── Task Complexity Detection ────────────────────────────────────────────────
+
 /**
- * Resolve the optimal engine model for a task based on the current sprint plan tier and selected engine.
+ * Determine if a task is light complexity (use fast model) or standard/complex.
+ * Light tasks: boilerplate, config, migrations, simple CRUD.
  */
-function resolveModelForTask(agent: LoadedAgent, task: string, cwd: string, engine: string): string {
-  let tier: "light" | "standard" | "complex" = "standard";
+function detectTaskComplexity(task: string): "light" | "standard" | "complex" {
+  const t = task.toLowerCase();
 
-  const briefPath = path.join(cwd, "PROJECT_BRIEF.md");
-  if (fs.existsSync(briefPath)) {
-    try {
-      const briefContent = fs.readFileSync(briefPath, "utf8");
-      const sprintMatch = briefContent.match(/Current Sprint:\s*Sprint\s*(\d+)/i);
-      if (sprintMatch) {
-        const sprintNum = sprintMatch[1];
-        const planPath = path.join(cwd, "docs", `sprint-${sprintNum}`, "plan.md");
-        if (fs.existsSync(planPath)) {
-          const planContent = fs.readFileSync(planPath, "utf8");
-          const lines = planContent.split("\n");
-          let headerRowIdx = -1;
-          let headers: string[] = [];
+  const lightKeywords = [
+    "scaffold", "boilerplate", "migration", "simple", "basic", "create file",
+    "add field", "rename", "move file", "update config", "add route", "crud",
+    "generate", "placeholder", "stub", "gitignore", "readme",
+  ];
 
-          for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (line.startsWith("|") && line.toLowerCase().includes("model tier")) {
-              headerRowIdx = i;
-              headers = line.split("|").map(cell => cell.trim().toLowerCase());
-              break;
-            }
-          }
+  const complexKeywords = [
+    "architecture", "refactor", "optimize", "security", "audit", "real-time",
+    "websocket", "payment", "auth system", "multi-tenant", "algorithm",
+    "performance", "concurrent", "distributed", "machine learning", "ai",
+  ];
 
-          if (headerRowIdx !== -1) {
-            const taskIdx = headers.indexOf("task");
-            const descIdx = headers.indexOf("description");
-            const tierIdx = headers.indexOf("model tier");
-            const numberIdx = headers.indexOf("#");
+  if (complexKeywords.some((kw) => t.includes(kw))) return "complex";
+  if (lightKeywords.some((kw) => t.includes(kw))) return "light";
+  return "standard";
+}
 
-            const isStringMatch = (val: string, query: string): boolean => {
-              if (!val) return false;
-              const cleanVal = val.toLowerCase().replace(/[^a-z0-9]/g, "");
-              const cleanQuery = query.toLowerCase().replace(/[^a-z0-9]/g, "");
-              return cleanVal.length > 5 && (cleanQuery.includes(cleanVal) || cleanVal.includes(cleanQuery));
-            };
+// ─── Model Resolution ─────────────────────────────────────────────────────────
 
-            for (let i = headerRowIdx + 2; i < lines.length; i++) {
-              const line = lines[i].trim();
-              if (!line.startsWith("|")) break;
-
-              const cells = line.split("|").map(c => c.trim());
-              if (cells.length < headers.length) continue;
-
-              const taskNum = numberIdx >= 0 ? cells[numberIdx] : "";
-              const taskName = taskIdx >= 0 ? cells[taskIdx] : "";
-              const taskDesc = descIdx >= 0 ? cells[descIdx] : "";
-              const tierVal = cells[tierIdx];
-
-              let isMatch = false;
-              if (taskNum && task.toLowerCase().includes(`task ${taskNum}`)) {
-                isMatch = true;
-              } else if (taskName && isStringMatch(taskName, task)) {
-                isMatch = true;
-              } else if (taskDesc && isStringMatch(taskDesc, task)) {
-                isMatch = true;
-              }
-
-              if (isMatch && tierVal) {
-                const t = tierVal.toLowerCase();
-                if (t.includes("light") || t.includes("green") || t.includes("🟢")) {
-                  tier = "light";
-                } else if (t.includes("complex") || t.includes("red") || t.includes("🔴")) {
-                  tier = "complex";
-                }
-                break;
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Prioritize user-configured default_model if executing standard tier
-  if (tier === "standard") {
-    const config = loadConfig(cwd);
-    if (config?.default_model) {
-      const configEngineNormalized = config.primary_engine?.toLowerCase();
-      const activeEngineNormalized = engine?.toLowerCase();
-      if (configEngineNormalized === activeEngineNormalized || 
-         (configEngineNormalized === "agy" && activeEngineNormalized === "antigravity") ||
-         (configEngineNormalized === "claude" && activeEngineNormalized === "claudecode") ||
-         (configEngineNormalized === "qwen" && activeEngineNormalized === "qwencode") ||
-         (configEngineNormalized === "mimo" && activeEngineNormalized === "mimocode")) {
-        return config.default_model;
-      }
-    }
-  }
-
-  // Map tier to appropriate model name depending on active engine ecosystem
-  if (engine === "claude") {
-    if (tier === "light") return "claude-3-5-haiku";
-    if (tier === "complex") return "claude-3-opus";
-    return "claude-3-5-sonnet";
-  }
-
-  if (engine === "opencode") {
-    const config = loadConfig(cwd);
-    const opencodeModels: string[] = config?.available_engines?.["opencode"]?.models || [];
-
-    if (tier === "light") {
-      const g35f = opencodeModels.find(m => m.includes("gemini-3.5-flash"));
-      if (g35f) return g35f;
-      const g25f = opencodeModels.find(m => m.includes("gemini-2.5-flash"));
-      if (g25f) return g25f;
-      const anyFlash = opencodeModels.find(m => m.toLowerCase().includes("flash"));
-      if (anyFlash) return anyFlash;
-      return "google/gemini-2.5-flash";
-    }
-
-    if (tier === "complex") {
-      const g31p = opencodeModels.find(m => m.includes("gemini-3.1-pro-preview"));
-      if (g31p) return g31p;
-      const q37m = opencodeModels.find(m => m.includes("qwen3.7-max"));
-      if (q37m) return q37m;
-      const dsPro = opencodeModels.find(m => m.includes("deepseek") && m.includes("pro"));
-      if (dsPro) return dsPro;
-      const anyPro = opencodeModels.find(m => m.toLowerCase().includes("pro") || m.toLowerCase().includes("max"));
-      if (anyPro) return anyPro;
-      return "google/gemini-3.1-pro-preview";
-    }
-
-    const g35f = opencodeModels.find(m => m.includes("gemini-3.5-flash"));
-    if (g35f) return g35f;
-    const g25p = opencodeModels.find(m => m.includes("gemini-2.5-pro"));
-    if (g25p) return g25p;
-    const q37p = opencodeModels.find(m => m.includes("qwen3.7-plus"));
-    if (q37p) return q37p;
-    const g25f = opencodeModels.find(m => m.includes("gemini-2.5-flash"));
-    if (g25f) return g25f;
-    return "google/gemini-2.5-flash";
-  }
-
-  if (engine === "codex") {
-    const config = loadConfig(cwd);
-    const codexModels: string[] = config?.available_engines?.["codex"]?.models || [];
-
-    if (tier === "light") {
-      const g54m = codexModels.find(m => m.includes("gpt-5.4-mini"));
-      if (g54m) return g54m;
-      const anyMini = codexModels.find(m => m.toLowerCase().includes("mini"));
-      if (anyMini) return anyMini;
-      return "gpt-4o-mini";
-    }
-
-    if (tier === "complex") {
-      const g55 = codexModels.find(m => m.includes("gpt-5.5"));
-      if (g55) return g55;
-      const o1 = codexModels.find(m => m.includes("o1"));
-      if (o1) return o1;
-      const o3 = codexModels.find(m => m.includes("o3"));
-      if (o3) return o3;
-      return "gpt-5.5";
-    }
-
-    const g54 = codexModels.find(m => m.includes("gpt-5.4") && !m.includes("mini"));
-    if (g54) return g54;
-    const g4o = codexModels.find(m => m.includes("gpt-4o") && !m.includes("mini"));
-    if (g4o) return g4o;
-    const anyGpt5 = codexModels.find(m => m.includes("gpt-5") && !m.includes("mini"));
-    if (anyGpt5) return anyGpt5;
-    return "gpt-4o";
-  }
-
-  // ── Antigravity CLI (agy) — Gemini family ───────────────────────────────────
-  if (engine === "agy") {
-    const config = loadConfig(cwd);
-    const agyModels: string[] = config?.available_engines?.["agy"]?.models || [];
-
-    if (tier === "light") {
-      const flash = agyModels.find(m => m.toLowerCase().includes("flash"));
-      if (flash) return flash;
-      return "gemini-2.5-flash";
-    }
-    if (tier === "complex") {
-      const pro = agyModels.find(m => m.toLowerCase().includes("pro") || m.toLowerCase().includes("ultra"));
-      if (pro) return pro;
-      return "gemini-2.5-pro";
-    }
-    const standard = agyModels.find(m => m.toLowerCase().includes("pro"));
-    if (standard) return standard;
-    return "gemini-2.5-flash";
-  }
-
-  // ── QwenCode (qwen) — Qwen family ───────────────────────────────────────────
-  if (engine === "qwen") {
-    const config = loadConfig(cwd);
-    const qwenModels: string[] = config?.available_engines?.["qwen"]?.models || [];
-
-    if (tier === "light") {
-      const flash = qwenModels.find(m => m.toLowerCase().includes("flash") || m.toLowerCase().includes("mini"));
-      if (flash) return flash;
-      return "qwen3-coder-flash";
-    }
-    if (tier === "complex") {
-      const max = qwenModels.find(m => m.toLowerCase().includes("max") || m.toLowerCase().includes("plus"));
-      if (max) return max;
-      return "qwen3-coder-max";
-    }
-    const standard = qwenModels.find(m => m.toLowerCase().includes("plus") || m.toLowerCase().includes("pro"));
-    if (standard) return standard;
-    return "qwen3-coder-plus";
-  }
-
-  // ── MimoCode (mimo) — MiMo family ───────────────────────────────────────────
-  if (engine === "mimo") {
-    const config = loadConfig(cwd);
-    const mimoModels: string[] = config?.available_engines?.["mimo"]?.models || [];
-
-    if (tier === "light") {
-      const fast = mimoModels.find(m => m.toLowerCase().includes("mini") || m.toLowerCase().includes("flash") || m.toLowerCase().includes("fast"));
-      if (fast) return fast;
-      return "mimo-vl-7b";
-    }
-    if (tier === "complex") {
-      const large = mimoModels.find(m => m.toLowerCase().includes("72b") || m.toLowerCase().includes("pro") || m.toLowerCase().includes("max"));
-      if (large) return large;
-      return "mimo-vl-72b";
-    }
-    const standard = mimoModels.find(m => m.toLowerCase().includes("vl"));
-    if (standard) return standard;
-    return "mimo-vl-7b";
-  }
-
+/**
+ * Resolve the optimal model for a task based on:
+ * 1. User's model_routing config (highest priority — user has final say)
+ * 2. Agent category + available models from config
+ * 3. Task complexity (light → fast model)
+ * 4. Default model preferences
+ */
+function resolveModelForTask(
+  agent: LoadedAgent,
+  task: string,
+  cwd: string,
+  engine: string
+): { engine: string; model: string } {
   const config = loadConfig(cwd);
-  if (config?.default_model) {
-    const configEngineNormalized = config.primary_engine?.toLowerCase();
-    const activeEngineNormalized = engine?.toLowerCase();
-    if (configEngineNormalized === activeEngineNormalized || 
-       (configEngineNormalized === "agy" && activeEngineNormalized === "antigravity") ||
-       (configEngineNormalized === "claude" && activeEngineNormalized === "claudecode") ||
-       (configEngineNormalized === "qwen" && activeEngineNormalized === "qwencode") ||
-       (configEngineNormalized === "mimo" && activeEngineNormalized === "mimocode")) {
-      return config.default_model;
+  const category = AGENT_CATEGORY_MAP[agent.manifest.id] ?? "backend";
+  const complexity = detectTaskComplexity(task);
+
+  // Light tasks → always use fast model (save tokens + cost)
+  const effectiveCategory = complexity === "light" ? "fast" : category;
+
+  // 1. User's explicit model_routing config (final authority)
+  if (config?.model_routing?.[effectiveCategory]) {
+    const routing = config.model_routing[effectiveCategory];
+    return {
+      engine: routing.engine || engine,
+      model: routing.model || agent.manifest.default_model,
+    };
+  }
+
+  // 2. Find best available model from installed engines
+  const prefs = DEFAULT_MODEL_PREFERENCES[effectiveCategory];
+  if (prefs && config?.available_engines) {
+    for (let i = 0; i < prefs.engines.length; i++) {
+      const preferredEngine = prefs.engines[i];
+      const preferredModel = prefs.models[i];
+      const engineData = config.available_engines[preferredEngine];
+
+      if (engineData?.models?.length > 0) {
+        // Check if preferred model is available
+        const exactMatch = engineData.models.find((m: string) =>
+          m.toLowerCase().includes(preferredModel.toLowerCase().replace(/-/g, ""))
+        );
+        if (exactMatch) {
+          return { engine: preferredEngine, model: exactMatch };
+        }
+        // Use any available model from this preferred engine
+        return { engine: preferredEngine, model: engineData.models[0] };
+      }
     }
   }
 
-  return agent.manifest.default_model;
+  // 3. Fallback: use primary engine + default model
+  const primaryEngine = config?.primary_engine || engine;
+  const defaultModel = config?.default_model || agent.manifest.default_model;
+  return { engine: primaryEngine, model: defaultModel };
 }
 
+// ─── Role Key (for model_mapping compatibility) ───────────────────────────────
+
 /**
- * Resolves the conceptual role key for a given agent and task.
- *
- * @param agentId - The executing agent's ID
- * @param task    - The task description
- * @returns The matched role key
+ * Get the role key for an agent (used in model_mapping config lookup).
+ * Maps generic agent IDs to routing categories.
  */
-export function getRoleKeyForAgent(agentId: string, task: string): string {
-  const cleanAgent = agentId.toLowerCase();
-  const cleanTask = task.toLowerCase();
-
-  // Hamid (Security)
-  if (cleanAgent === 'hamid-security' || cleanAgent.includes('security')) {
-    if (cleanTask.includes('fallback') || cleanTask.includes('laravel')) {
-      return 'security_fallback';
-    }
-    return 'primary_security_reviewer';
-  }
-
-  // Sajjad (Debugger)
-  if (cleanAgent === 'sajjad-debugger' || cleanAgent.includes('debug') || cleanAgent.includes('bug')) {
-    return 'fast_bug_fixing';
-  }
-
-  // Designers (Mahdi, Mustafa)
-  if (
-    cleanAgent === 'mahdi-designer' ||
-    cleanAgent === 'mustafa-visual' ||
-    cleanAgent.includes('design') ||
-    cleanAgent.includes('visual')
-  ) {
-    if (cleanTask.includes('polish') || cleanTask.includes('ux') || cleanTask.includes('review')) {
-      return 'design_polish_ux_review';
-    }
-    if (cleanTask.includes('fallback')) {
-      return 'design_fallback';
-    }
-    return 'primary_design_brain';
-  }
-
-  // Frontends (Karar, Hassan, Noor, Anas, Amina, Hasan)
-  if (
-    cleanAgent === 'karar-frontend' ||
-    cleanAgent === 'hassan-bootstrap' ||
-    cleanAgent === 'noor-shadcn' ||
-    cleanAgent === 'anas-react' ||
-    cleanAgent === 'amina-vue' ||
-    cleanAgent === 'hasan-css' ||
-    cleanAgent.includes('frontend') ||
-    cleanAgent.includes('react') ||
-    cleanAgent.includes('vue') ||
-    cleanAgent.includes('css')
-  ) {
-    if (cleanTask.includes('review') || cleanTask.includes('audit') || cleanTask.includes('final')) {
-      return 'frontend_final_review';
-    }
-    if (cleanTask.includes('fallback')) {
-      return 'frontend_fallback';
-    }
-    return 'frontend_builder';
-  }
-
-  // Backends (Tariq, Abbas, Bilal, Yusuf, Fatima)
-  if (
-    cleanAgent === 'tariq-backend' ||
-    cleanAgent === 'abbas-python' ||
-    cleanAgent === 'bilal-systems' ||
-    cleanAgent === 'yusuf-java' ||
-    cleanAgent === 'fatima-data' ||
-    cleanAgent.includes('backend') ||
-    cleanAgent.includes('python') ||
-    cleanAgent.includes('systems') ||
-    cleanAgent.includes('java') ||
-    cleanAgent.includes('data')
-  ) {
-    if (
-      cleanTask.includes('multi-file') ||
-      cleanTask.includes('multiple files') ||
-      cleanTask.includes('refactor') ||
-      cleanTask.includes('large')
-    ) {
-      return 'backend_multi_file_builder';
-    }
-    if (cleanTask.includes('fallback')) {
-      return 'backend_fallback';
-    }
-    return 'primary_backend_builder';
-  }
-
-  // QA / Auditing / Snapshot / DevOps / Zara SEO / Gohar
-  if (
-    cleanAgent === 'muhammad-qa' ||
-    cleanAgent === 'zara-content' ||
-    cleanAgent === 'ali-devops' ||
-    cleanAgent === 'gohar-ceo' ||
-    cleanAgent.includes('qa') ||
-    cleanAgent.includes('seo') ||
-    cleanAgent.includes('devops') ||
-    cleanAgent.includes('ceo')
-  ) {
-    if (
-      cleanTask.includes('audit') ||
-      cleanTask.includes('final') ||
-      cleanTask.includes('snapshot') ||
-      cleanTask.includes('verify')
-    ) {
-      return 'external_final_audit';
-    }
-  }
-
-  // Default fallback is primary_architecture_reviewer or default_model
-  if (cleanTask.includes('architecture') || cleanTask.includes('review') || cleanTask.includes('plan')) {
-    return 'primary_architecture_reviewer';
-  }
-
-  return 'primary_architecture_reviewer';
+export function getRoleKeyForAgent(agentId: string, _task: string): string {
+  return AGENT_CATEGORY_MAP[agentId.toLowerCase()] ?? "backend";
 }
 
+// ─── Main Run Function ────────────────────────────────────────────────────────
+
 /**
- * Run an agent against a task. This is the primary entry point for the CLI.
+ * Run an agent against a task. Primary entry point for the CLI.
  *
  * @param agent   - The fully loaded agent (from loadAgent or registry)
  * @param task    - The task description string
  * @param options - Execution options (dry-run, engine override, model override, output dir, cwd)
  * @param acceptanceCriteria - Optional acceptance criteria string
- * @returns ExecutionResult with prompt, output, errors, and session path
  */
 export async function runAgent(
   agent: LoadedAgent,
@@ -455,33 +265,21 @@ export async function runAgent(
 ): Promise<ExecutionResult> {
   const start = Date.now();
   const cwd = options.cwd ?? process.cwd();
-  const dryRun = options.dryRun !== false ? true : false; // default: dry-run
+  const dryRun = options.dryRun !== false ? true : false;
 
-  const config = loadConfig(cwd);
-  const roleKey = getRoleKeyForAgent(agent.manifest.id, task);
-  let mappedEngine = "";
-  let mappedModel = "";
+  // 1. Resolve Engine + Model via intelligent routing
+  let resolvedEngine = "claude"; // ultimate fallback
+  let resolvedModel = agent.manifest.default_model;
 
-  if (config && config.model_mapping && config.model_mapping[roleKey]) {
-    const mapping = config.model_mapping[roleKey];
-    if (mapping.engine) {
-      mappedEngine = mapping.engine;
-    }
-    if (mapping.model) {
-      mappedModel = mapping.model;
-    }
-  }
-
-  // 1. Resolve Engine
-  let resolvedEngine = "claude"; // fallback
-  if (options.engine) {
+  if (options.engine && options.model) {
+    // User explicitly specified both — respect that (user has final say)
     resolvedEngine = options.engine.toLowerCase();
-  } else if (mappedEngine) {
-    resolvedEngine = mappedEngine.toLowerCase();
-  } else if (config && config.primary_engine) {
-    resolvedEngine = config.primary_engine.toLowerCase();
-  } else if (agent.manifest.preferred_engines && agent.manifest.preferred_engines.length > 0) {
-    resolvedEngine = agent.manifest.preferred_engines[0].toLowerCase();
+    resolvedModel = options.model;
+  } else {
+    // Use intelligent routing
+    const routing = resolveModelForTask(agent, task, cwd, options.engine || "claude");
+    resolvedEngine = options.engine?.toLowerCase() || routing.engine;
+    resolvedModel = options.model || routing.model;
   }
 
   // Normalize engine name aliases
@@ -490,30 +288,96 @@ export async function runAgent(
   if (resolvedEngine === "qwencode" || resolvedEngine === "qwen-code") resolvedEngine = "qwen";
   if (resolvedEngine === "mimocode" || resolvedEngine === "mimo-code") resolvedEngine = "mimo";
 
-  // 2. Resolve Model
-  let resolvedModel = "";
-  if (options.model) {
-    resolvedModel = options.model;
-  } else if (mappedModel) {
-    resolvedModel = mappedModel;
-  } else {
-    resolvedModel = resolveModelForTask(agent, task, cwd, resolvedEngine);
-  }
-
-  const adapter = getAdapter(!dryRun, resolvedEngine);
-
-  // Build the final prompt
-  const finalPrompt = buildPrompt(agent, task, acceptanceCriteria);
+  // 2. Build the initial prompt (category-aware, compact context)
+  const finalPrompt = buildPrompt(agent, task, acceptanceCriteria, cwd);
 
   const errors: string[] = [];
-  let output = "";
+  let cumulativeOutput = "";
 
-  try {
-    output = await adapter.run(finalPrompt, resolvedModel);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    errors.push(msg);
-    output = `[Error during execution]: ${msg}`;
+  // 3. Load config for routing checks
+  const config = loadConfig(cwd);
+  const category = AGENT_CATEGORY_MAP[agent.manifest.id] ?? "backend";
+
+  // 4. Build the failover queue of engines to try
+  const failoverQueue = getFailoverQueue(agent, config, resolvedEngine);
+
+  let currentEngineIndex = 0;
+  let currentEngine = resolvedEngine;
+  let currentModel = resolvedModel;
+  let currentPrompt = finalPrompt;
+  let success = false;
+  let limitExhausted = false;
+
+  // 5. Failover Execution Loop
+  while (currentEngineIndex < failoverQueue.length) {
+    currentEngine = failoverQueue[currentEngineIndex];
+    if (currentEngineIndex > 0) {
+      currentModel = getModelForEngine(config, currentEngine, category, agent);
+    } else {
+      currentModel = resolvedModel;
+    }
+
+    if (dryRun) {
+      // Dry-run mode: execute only the first engine without hitting a real LLM
+      const adapter = getAdapter(false, currentEngine);
+      cumulativeOutput = await adapter.run(currentPrompt, currentModel);
+      success = true;
+      break;
+    }
+
+    console.log(`\n🤖 [IMH-Code] Attempting execution on engine "${currentEngine}" using model "${currentModel}"...`);
+
+    const adapter = getAdapter(true, currentEngine);
+    let output = "";
+    let error: any = null;
+
+    try {
+      output = await adapter.run(currentPrompt, currentModel);
+    } catch (err: any) {
+      error = err;
+      output = err.message || "";
+    }
+
+    // Check if limits (tokens/quota/rate) were reached
+    const check = detectLimitCondition(output, error);
+
+    if (check.limitReached) {
+      console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" hit a limit: ${check.reason}`);
+      cumulativeOutput += (cumulativeOutput ? "\n" : "") + check.partialOutput;
+
+      currentEngineIndex++;
+      if (currentEngineIndex < failoverQueue.length) {
+        const nextEng = failoverQueue[currentEngineIndex];
+        console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng}"...`);
+
+        // Build failover resume prompt
+        const failoverResumeContext = [
+          `\n# ⚠️ FAILOVER RESUME CONTEXT`,
+          `The previous engine execution (using ${currentEngine} with model ${currentModel}) hit a limit and was interrupted mid-task.`,
+          `Here is the partial output produced by the previous run before it stopped:`,
+          `\n---`,
+          cumulativeOutput.trim(),
+          `---\n`,
+          `Please resume from exactly where the process was interrupted. Review what was already created or modified, and complete the remaining parts of the original task. Do NOT restart the entire task from scratch.`
+        ].join("\n");
+
+        currentPrompt = finalPrompt + "\n" + failoverResumeContext;
+      } else {
+        limitExhausted = true;
+        errors.push(`All available engines (${failoverQueue.join(", ")}) hit limits and were exhausted.`);
+        cumulativeOutput += "\n\n[Execution aborted: all available engines hit limits]";
+      }
+    } else {
+      if (error) {
+        // If it failed with a standard error (e.g. syntax, task validation), do NOT failover
+        errors.push(error.message || String(error));
+        cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
+      } else {
+        success = true;
+        cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
+      }
+      break; // Successfully completed or failed with a non-limit error
+    }
   }
 
   const durationMs = Date.now() - start;
@@ -521,24 +385,19 @@ export async function runAgent(
   const result: ExecutionResult = {
     agentId: agent.manifest.id,
     task,
-    model: resolvedModel,
+    model: resolvedModel, // report original requested model
     dryRun,
     prompt: finalPrompt,
-    output,
+    output: cumulativeOutput,
     errors,
     changedFiles: [],
     memoryUpdates: {},
     durationMs,
   };
 
-  // Always save the session log
+  // 6. Save session log
   try {
-    const sessionDir = saveSession(
-      result,
-      agent.manifest,
-      cwd,
-      options.outputDir
-    );
+    const sessionDir = saveSession(result, agent.manifest, cwd, options.outputDir);
     result.sessionDir = sessionDir;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -547,3 +406,130 @@ export async function runAgent(
 
   return result;
 }
+
+// ─── Failover & Recovery Helpers ──────────────────────────────────────────────
+
+/**
+ * Checks if the process output or error indicates a limit-reached condition.
+ */
+function detectLimitCondition(
+  output: string,
+  error?: any
+): { limitReached: boolean; partialOutput: string; reason: string } {
+  const text = (output || "") + "\n" + (error?.message || "") + "\n" + (error?.stderr || "");
+  const lower = text.toLowerCase();
+
+  const limitPatterns = [
+    "limit reached",
+    "rate limit",
+    "token limit",
+    "quota limit",
+    "insufficient quota",
+    "exhausted",
+    "0% limit",
+    "context limit",
+    "rate_limit",
+    "too many requests",
+    "out of tokens"
+  ];
+
+  const matched = limitPatterns.find(p => lower.includes(p));
+  if (matched) {
+    let partial = output || "";
+    // If output is stored in error message (e.g. child process output block), extract it
+    if (error && error.message) {
+      const matchStdout = error.message.match(/Stdout:\s*([\s\S]*)$/i);
+      if (matchStdout) {
+        partial = matchStdout[1];
+      }
+    }
+    return {
+      limitReached: true,
+      partialOutput: partial.trim(),
+      reason: `matched limit pattern: "${matched}"`
+    };
+  }
+
+  return { limitReached: false, partialOutput: "", reason: "" };
+}
+
+/**
+ * Scan imhcode.config.json to find which engines are actually installed and valid.
+ */
+function getInstalledEngines(config: any): string[] {
+  if (!config || !config.available_engines) return [];
+  return Object.keys(config.available_engines).filter(key => {
+    const eng = config.available_engines[key];
+    return eng && eng.path && fs.existsSync(eng.path);
+  });
+}
+
+/**
+ * Builds the ordered array of fallback engines to attempt during execution.
+ */
+function getFailoverQueue(
+  agent: LoadedAgent,
+  config: any,
+  initialEngine: string
+): string[] {
+  const installed = getInstalledEngines(config);
+  const queue = [initialEngine];
+
+  // 1. Add preferred engines from manifest
+  if (agent.manifest.preferred_engines) {
+    for (const eng of agent.manifest.preferred_engines) {
+      const clean = eng.toLowerCase().trim();
+      if (!queue.includes(clean) && installed.includes(clean)) {
+        queue.push(clean);
+      }
+    }
+  }
+
+  // 2. Add fallback engines from manifest
+  if (agent.manifest.fallback_engines) {
+    for (const eng of agent.manifest.fallback_engines) {
+      const clean = eng.toLowerCase().trim();
+      if (!queue.includes(clean) && installed.includes(clean)) {
+        queue.push(clean);
+      }
+    }
+  }
+
+  // 3. Add any other installed engines as a last resort
+  for (const eng of installed) {
+    if (!queue.includes(eng)) {
+      queue.push(eng);
+    }
+  }
+
+  return queue;
+}
+
+/**
+ * Resolves the model to use for a failover engine.
+ */
+function getModelForEngine(
+  config: any,
+  engineName: string,
+  category: string,
+  agent: LoadedAgent
+): string {
+  // Check user's config model routing first
+  if (config?.model_routing?.[category]?.engine === engineName) {
+    return config.model_routing[category].model;
+  }
+
+  // Check available models in config for this engine
+  const engineData = config?.available_engines?.[engineName];
+  if (engineData?.models?.length > 0) {
+    return engineData.models[0];
+  }
+
+  // Check if agent manifest matches engine
+  if (agent.manifest.preferred_engines?.includes(engineName)) {
+    return agent.manifest.default_model;
+  }
+
+  return "default";
+}
+

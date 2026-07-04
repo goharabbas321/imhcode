@@ -1,0 +1,53 @@
+id: ios-executor
+name: "iOS Executor"
+description: "build native iOS applications using SwiftUI, Swift Concurrency, Combine, and Apple frameworks."
+version: "1.0.0"
+role: "iOS / SwiftUI Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/swiftui-patterns/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - opencode
+  - codex
+  - claude
+
+fallback_engines:
+  - claude
+
+default_model: deepseek-v4-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - mobile_screen
+  - ui_component
+  - navigation
+  - api_integration
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

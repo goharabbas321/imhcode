@@ -1,5 +1,6 @@
 /**
  * Session logger: saves all execution artifacts to a timestamped directory.
+ * IMH-Code — Imam Hussain Coding Harness Platform
  *
  * After every execution, the following files are written to
  * sessions/{timestamp}-{agent-id}/:

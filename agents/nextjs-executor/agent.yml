@@ -1,0 +1,60 @@
+id: nextjs-executor
+name: "Next.js Executor"
+description: "build complete Next.js applications including pages, components, API routes, authentication, and performance optimization."
+version: "1.0.0"
+role: "Senior Next.js Full-Stack Executor"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/nextjs-turbopack/SKILL.md
+  - ../../skills/shadcn-ui-patterns/SKILL.md
+  - ../../skills/tailwindcss-v4/SKILL.md
+  - ../../skills/frontend-design/SKILL.md
+  - ../../skills/seo/SKILL.md
+
+preferred_engines:
+  - mimo
+  - codex
+  - claude
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: mimo-vl-v2.5-pro
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+
+supported_task_types:
+  - ui_component
+  - page_design
+  - api_route
+  - authentication
+  - landing_page
+  - dashboard
+  - full_stack
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false

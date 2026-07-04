@@ -1,0 +1,56 @@
+id: debugger
+name: "Debugger"
+description: "investigate and fix bugs, perform root cause analysis, and resolve complex technical issues across all stack layers."
+version: "1.0.0"
+role: "Debugging & Root Cause Analyst"
+
+system_prompt: "./SYSTEM.md"
+
+# Core skills are ALWAYS loaded (keep lean — 3-6 skills max)
+# Extended skills are loaded on-demand by task keyword matching
+skills:
+  - ../../skills/systematic-debugging/SKILL.md
+  - ../../skills/error-handling/SKILL.md
+
+preferred_engines:
+  - codex
+  - claude
+  - opencode
+
+fallback_engines:
+  - claude
+
+default_model: gpt-5.5
+
+permissions:
+  read_files: true
+  write_files: true
+  run_commands: true
+  network_access: false
+
+memory:
+  scopes:
+    - imhdb
+    - session
+  readable:
+    - PROJECT_BRIEF.md
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+  writable:
+    - docs/**/*.md
+    - frontend/**
+    - backend/**
+
+supported_task_types:
+  - debugging
+  - root_cause
+  - code_review
+  - performance
+  - fix
+
+quality_gates: []
+
+output:
+  format: markdown
+  include_tests: false
