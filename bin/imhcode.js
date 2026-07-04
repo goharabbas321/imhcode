@@ -1675,17 +1675,28 @@ Write any additional requirements, constraints, or preferences here:
 
 async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
   // Parse answers from brainstorming
-  const testingModeRaw = extractAnswer(brainstormContent, 'Q31', 'A').trim().toUpperCase().charAt(0);
+  // Resolve keys dynamically to handle shifts in question numbering (Fix scope & design bugs)
+  const keyTesting = resolveQuestionKey(brainstormContent, ['testing']);
+  const keyQ8 = resolveQuestionKey(brainstormContent, ['color palette']);
+  const keyQ9 = resolveQuestionKey(brainstormContent, ['design aesthetic']);
+  const keyQ12 = resolveQuestionKey(brainstormContent, ['dark mode']);
+  const keyQ14 = resolveQuestionKey(brainstormContent, ['worktree']);
+  const keyQ16 = resolveQuestionKey(brainstormContent, ['backend framework']);
+  const keyQ21 = resolveQuestionKey(brainstormContent, ['real-time']);
+  const keyQ22 = resolveQuestionKey(brainstormContent, ['payment']);
+  const keyQ25 = resolveQuestionKey(brainstormContent, ['mobile framework']);
+
+  const testingModeRaw = extractAnswer(brainstormContent, keyTesting, 'A').trim().toUpperCase().charAt(0);
   const detectedTesting = testingModeRaw === 'B' ? 'balanced' : testingModeRaw === 'C' ? 'strict' : 'fast';
 
-  const ansQ8  = extractAnswer(brainstormContent, 'Q8', 'Dark Premium').trim();
-  const ansQ9  = extractAnswer(brainstormContent, 'Q9', 'Modern SaaS').trim();
-  const ansQ12 = extractAnswer(brainstormContent, 'Q12', 'system toggle').toLowerCase();
-  const ansQ14 = extractAnswer(brainstormContent, 'Q14', 'no').toLowerCase();
-  const ansQ16 = extractAnswer(brainstormContent, 'Q16', 'no').toLowerCase();
-  const ansQ21 = extractAnswer(brainstormContent, 'Q21', 'no').toLowerCase();
-  const ansQ22 = extractAnswer(brainstormContent, 'Q22', 'no').toLowerCase();
-  const ansQ25 = extractAnswer(brainstormContent, 'Q25', 'no').toLowerCase();
+  const ansQ8  = extractAnswer(brainstormContent, keyQ8, 'Dark Premium').trim();
+  const ansQ9  = extractAnswer(brainstormContent, keyQ9, 'Modern SaaS').trim();
+  const ansQ12 = extractAnswer(brainstormContent, keyQ12, 'system toggle').toLowerCase();
+  const ansQ14 = extractAnswer(brainstormContent, keyQ14, 'no').toLowerCase();
+  const ansQ16 = extractAnswer(brainstormContent, keyQ16, 'no').toLowerCase();
+  const ansQ21 = extractAnswer(brainstormContent, keyQ21, 'no').toLowerCase();
+  const ansQ22 = extractAnswer(brainstormContent, keyQ22, 'no').toLowerCase();
+  const ansQ25 = extractAnswer(brainstormContent, keyQ25, 'no').toLowerCase();
 
   const hasFrontend = true; // Always assume frontend
 
@@ -2192,10 +2203,49 @@ function extractPromptFromStartMd(content) {
   return lines.join(' ').slice(0, 500);
 }
 
+function resolveQuestionKey(content, keywords) {
+  const regex = /\*\*(Q\d+):\s*([^\n*]+)\*\*/gi;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const key = match[1];
+    const text = match[2].toLowerCase();
+    if (keywords.every(kw => text.includes(kw.toLowerCase()))) {
+      return key;
+    }
+  }
+  return null;
+}
+
 function extractAnswer(brainstormContent, questionKey, defaultAnswer) {
-  const regex = new RegExp(`\\*\\*${questionKey}.*?\\*\\*Your Answer:\\*\\*\\s*([^\\n*]+)`, 's');
-  const match = brainstormContent.match(regex);
-  if (match) return match[1].replace(/\*\(.*?\)\*/g, '').trim();
+  if (!questionKey) return defaultAnswer;
+
+  // 1. Extract Your Answer section
+  const answerRegex = new RegExp(`\\*\\*${questionKey}.*?\\*\\*Your Answer:?\\*\\*:?\\s*([^\\n\\r*]+)`, 's');
+  const matchAnswer = brainstormContent.match(answerRegex);
+  
+  let answer = '';
+  if (matchAnswer) {
+    answer = matchAnswer[1].replace(/\*\(.*?\)\*/g, '').trim();
+  }
+  
+  // Clean placeholders
+  const isPlaceholder = !answer || 
+                        /edit\s+if\s+needed/i.test(answer) || 
+                        /your\s+answer/i.test(answer) || 
+                        /your\s+notes/i.test(answer);
+
+  if (!isPlaceholder) {
+    return answer;
+  }
+  
+  // 2. If it is a placeholder, extract the Recommended answer from the document
+  const recommendedRegex = new RegExp(`\\*\\*${questionKey}.*?\\*\\*Recommended:?\\*\\*:?\\s*([^\\n\\r*]+)`, 's');
+  const matchRec = brainstormContent.match(recommendedRegex);
+  if (matchRec) {
+    const recAnswer = matchRec[1].replace(/\*\(.*?\)\*/g, '').trim();
+    if (recAnswer) return recAnswer;
+  }
+  
   return defaultAnswer;
 }
 
