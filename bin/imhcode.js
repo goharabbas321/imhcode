@@ -5,23 +5,24 @@
  *
  * Usage:
  *   imhcode                            → Initialize framework in current directory
- *   imhcode plan                       → Smart: brainstorm OR sprint-plan based on state
+ *   imhcode plan                       → Smart: brainstorm (LLM) OR sprint-plan (LLM) based on state
  *   imhcode execute [N]                → Execute sprint N with intelligent model routing
  *   imhcode test                       → Run the testing/security/SEO sprint
+ *   imhcode report                     → Generate PROJECT_REPORT.md for the team
  *   imhcode agent list                 → List all discovered agents
  *   imhcode agent inspect <id>         → Show full manifest + loaded skills
  *   imhcode agent run <id> "<task>"    → Run agent (dry-run by default)
  *     --engine <cli>                   → Override engine (claude|opencode|codex|agy|qwen|mimo)
- *     -m, --model <model>             → Override model
- *     --live                          → Call real LLM
- *     --output <path>                 → Custom session output directory
+ *     -m, --model <model>              → Override model
+ *     --live                           → Call real LLM
+ *     --output <path>                  → Custom session output directory
  */
 
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 const os = require('os');
 const readline = require('readline');
 
@@ -71,6 +72,11 @@ if (command === 'plan') {
     console.error(err.message ?? err);
     process.exit(1);
   });
+} else if (command === 'report') {
+  runReportCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
 } else if (command === 'agent') {
   runAgentCommand(subcommand, args.slice(2)).catch(err => {
     console.error(err.message ?? err);
@@ -100,9 +106,10 @@ function printGeneralHelp() {
 
   Usage:
     ${CLI_CMD}                        → Initialize project (engine scan + model routing setup)
-    ${CLI_CMD} plan                   → Smart: brainstorm OR generate sprint plan
+    ${CLI_CMD} plan                   → Smart: brainstorm (LLM) OR generate sprint plan (LLM)
     ${CLI_CMD} execute [N]            → Execute sprint N with intelligent model routing
     ${CLI_CMD} test                   → Run final testing/security/SEO sprint
+    ${CLI_CMD} report                 → Generate PROJECT_REPORT.md for the team
     ${CLI_CMD} agent list             → List all 19 generic agents
     ${CLI_CMD} agent inspect <id>     → Show agent manifest + loaded skills
     ${CLI_CMD} agent run <id> "<task>" → Run agent (dry-run by default)
@@ -112,58 +119,53 @@ function printGeneralHelp() {
       --output <path>                 → Save session to custom path
 
   Pipeline:
-    1. ${CLI_CMD}                     → Init project
-    2. Edit docs/start.md             → Write your problem/prompt
-    3. ${CLI_CMD} plan                → Generates docs/brainstorming.md with Q&A
+    1. ${CLI_CMD}                     → Init project (no frontend/backend dirs yet)
+    2. Edit docs/start.md             → Answer scope questions + write your description
+    3. ${CLI_CMD} plan                → Generates docs/brainstorming.md (via planning LLM)
     4. Edit docs/brainstorming.md     → Review/edit recommended answers
-    5. ${CLI_CMD} plan                → Reads answers → generates sprint plans
-    6. ${CLI_CMD} execute 1           → Execute sprint 1 (pure code, no tests)
+    5. ${CLI_CMD} plan                → Reads answers → generates sprint plans (via planning LLM)
+    6. ${CLI_CMD} execute 1           → Execute sprint 1 (each task uses its routed model)
     7. ${CLI_CMD} execute 2           → Execute sprint 2
     8. ${CLI_CMD} test                → Final testing, security + SEO audit
+    9. ${CLI_CMD} report              → Generate PROJECT_REPORT.md
 
   Agents (19 generic — no persona names):
-    planner           → Project planning, brainstorming, sprint coordination
-    designer          → UX/UI design (Mimo v2.5 Pro preferred)
-    nextjs-executor   → Next.js full-stack (Mimo v2.5 Pro preferred)
-    react-executor    → React/Vite SPA
-    vue-executor      → Vue 3 / Nuxt 4
-    laravel-executor  → Laravel full-stack (DeepSeek V4 Pro preferred)
-    python-executor   → Python / Django / FastAPI
-    java-executor     → Java / Spring Boot
-    flutter-executor  → Flutter / Dart
-    react-native-executor → React Native / Expo
-    ios-executor      → iOS / SwiftUI
-    android-executor  → Android / Kotlin
-    systems-executor  → Go / Rust / C++
-    web3-executor     → Solidity / Web3
-    devops-executor   → Docker / CI/CD
-    tester            → QA + E2E testing (GPT-5.5 preferred)
-    security-auditor  → Security audit (GPT-5.5 preferred)
-    seo-optimizer     → SEO / Content (GPT-5.5 preferred)
-    debugger          → Debugging / Root cause
+    planner           → Project planning, brainstorming, sprint coordination [planning model]
+    designer          → UX/UI design [frontend model — Mimo v2.5 Pro preferred]
+    nextjs-executor   → Next.js full-stack [frontend model — Mimo v2.5 Pro preferred]
+    react-executor    → React/Vite SPA [frontend model]
+    vue-executor      → Vue 3 / Nuxt 4 [frontend model]
+    laravel-executor  → Laravel full-stack [backend model — DeepSeek V4 Pro preferred]
+    python-executor   → Python / Django / FastAPI [backend model]
+    java-executor     → Java / Spring Boot [backend model]
+    flutter-executor  → Flutter / Dart [backend model]
+    react-native-executor → React Native / Expo [backend model]
+    ios-executor      → iOS / SwiftUI [backend model]
+    android-executor  → Android / Kotlin [backend model]
+    systems-executor  → Go / Rust / C++ [backend model]
+    web3-executor     → Solidity / Web3 [backend model]
+    devops-executor   → Docker / CI/CD [backend model]
+    tester            → QA + E2E testing [testing model — GPT-5.5 preferred]
+    security-auditor  → Security audit [testing model — GPT-5.5 preferred]
+    seo-optimizer     → SEO / Content [review model — GPT-5.5 preferred]
+    debugger          → Debugging / Root cause [review model]
 
   ${CLI_CMD} --version, -v           → Print version
   ${CLI_CMD} --help, -h              → Print this help
   `);
 }
 
-// ─── imhcode plan (Smart State Machine) ───────────────────────────────────────
+// ─── imhcode plan (Smart State Machine + LLM-Powered) ─────────────────────────
 
 async function runPlanCommand(restArgs) {
   const cwd = process.cwd();
-  const startMdPath  = path.join(cwd, START_MD);
+  const startMdPath    = path.join(cwd, START_MD);
   const brainstormPath = path.join(cwd, BRAINSTORM_MD);
-  const briefPath    = path.join(cwd, BRIEF_MD);
+  const hasSprintDocs  = detectSprintDocs(cwd);
 
   console.log(`\n🕌 ${PLATFORM_NAME} — Plan Command\n`);
 
-  // State detection
-  const hasStartMd      = fs.existsSync(startMdPath);
-  const hasBrainstorm   = fs.existsSync(brainstormPath);
-  const hasBrief        = fs.existsSync(briefPath);
-  const hasSprintDocs   = detectSprintDocs(cwd);
-
-  if (!hasStartMd) {
+  if (!fs.existsSync(startMdPath)) {
     console.log(`❌ docs/start.md not found.\n`);
     console.log(`   Create docs/start.md and write your project description inside it.`);
     console.log(`   Then run "imhcode plan" again.\n`);
@@ -171,9 +173,9 @@ async function runPlanCommand(restArgs) {
     process.exit(1);
   }
 
-  // Read the start.md prompt
   const startContent = fs.readFileSync(startMdPath, 'utf8');
-  const userPrompt = extractPromptFromStartMd(startContent);
+  const userPrompt   = extractPromptFromStartMd(startContent);
+  const scopeHints   = extractScopeHints(startContent);
 
   if (!userPrompt || userPrompt.trim().length < 10) {
     console.log(`❌ docs/start.md has no project description.\n`);
@@ -184,31 +186,44 @@ async function runPlanCommand(restArgs) {
     process.exit(1);
   }
 
-  // ── State 1: No brainstorming yet → generate brainstorming.md ────────────
-  if (!hasBrainstorm) {
-    console.log(`📋 Phase 2: Generating brainstorming document...\n`);
-    console.log(`   Reading your project description from docs/start.md...`);
-    console.log(`   Prompt: "${userPrompt.slice(0, 100)}${userPrompt.length > 100 ? '...' : ''}"\n`);
+  const config = loadLocalConfig(cwd);
 
-    await generateBrainstormingDoc(cwd, userPrompt);
+  // ── State 1: No brainstorming yet → generate brainstorming.md via LLM ──────
+  if (!fs.existsSync(brainstormPath)) {
+    console.log(`📋 Phase 2: Generating brainstorming document via planning AI...\n`);
+    console.log(`   Project: "${userPrompt.slice(0, 100)}${userPrompt.length > 100 ? '...' : ''}"`);
+
+    const planningRouting = config?.model_routing?.planning;
+    if (planningRouting) {
+      console.log(`   Model:   ${planningRouting.model} via ${planningRouting.engine}`);
+    } else {
+      console.log(`   Model:   (fallback static template — run imhcode to configure model routing)`);
+    }
+    console.log('');
+
+    await generateBrainstormingDoc(cwd, userPrompt, scopeHints, config);
 
     console.log(`\n✅ Brainstorming document created: docs/brainstorming.md\n`);
     console.log(`─`.repeat(60));
     console.log(`\n📝 NEXT STEPS:\n`);
     console.log(`  1. Open docs/brainstorming.md`);
-    console.log(`  2. Review the auto-recommended answers`);
+    console.log(`  2. Review the AI-recommended answers`);
     console.log(`  3. Edit any answers you want to customize`);
     console.log(`  4. Run "imhcode plan" again to generate sprint plans\n`);
     console.log(`─`.repeat(60));
     return;
   }
 
-  // ── State 2: Brainstorming exists, no sprint plans → generate sprints ─────
-  if (hasBrainstorm && !hasSprintDocs) {
-    console.log(`📋 Phase 3-4: Reading brainstorming answers → generating sprint plans...\n`);
+  // ── State 2: Brainstorming exists, no sprint plans → generate sprints via LLM
+  if (!hasSprintDocs) {
+    console.log(`📋 Phase 3-4: Reading brainstorming answers → generating sprint plans via AI...\n`);
 
     const brainstormContent = fs.readFileSync(brainstormPath, 'utf8');
-    const config = loadLocalConfig(cwd);
+    const planningRouting = config?.model_routing?.planning;
+    if (planningRouting) {
+      console.log(`   Model:   ${planningRouting.model} via ${planningRouting.engine}`);
+    }
+    console.log('');
 
     await generateSprintPlans(cwd, userPrompt, brainstormContent, config);
 
@@ -218,27 +233,26 @@ async function runPlanCommand(restArgs) {
     console.log(`  1. Review docs/sprint-1/plan.md`);
     console.log(`  2. Run "imhcode execute 1" to start Sprint 1`);
     console.log(`  3. Then "imhcode execute 2", "imhcode execute 3", etc.`);
-    console.log(`  4. Run "imhcode test" for the final testing sprint\n`);
+    console.log(`  4. Run "imhcode test" for the final testing sprint`);
+    console.log(`  5. Run "imhcode report" to generate the team report\n`);
     console.log(`─`.repeat(60));
     return;
   }
 
   // ── State 3: Sprints already exist ───────────────────────────────────────
-  if (hasSprintDocs) {
-    const currentSprint = detectCurrentSprint(cwd);
-    console.log(`ℹ️  Sprint plans already exist (current sprint: Sprint ${currentSprint}).\n`);
-    console.log(`  Use "imhcode execute ${currentSprint}" to run the current sprint.`);
-    console.log(`  Use "imhcode test" to run the final testing sprint.\n`);
-    console.log(`  To re-plan from scratch, delete docs/brainstorming.md and run "imhcode plan".\n`);
-  }
+  const currentSprint = detectCurrentSprint(cwd);
+  console.log(`ℹ️  Sprint plans already exist (current sprint: Sprint ${currentSprint}).\n`);
+  console.log(`  Use "imhcode execute ${currentSprint}" to run the current sprint.`);
+  console.log(`  Use "imhcode test" to run the final testing sprint.\n`);
+  console.log(`  To re-plan from scratch, delete docs/brainstorming.md and run "imhcode plan".\n`);
 }
 
 // ─── imhcode execute [N] ──────────────────────────────────────────────────────
 
 async function runExecuteCommand(restArgs) {
   const cwd = process.cwd();
-  const sprintNum = resolveSprintNum(restArgs, cwd);
-  const sprintDir = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
+  const sprintNum    = resolveSprintNum(restArgs, cwd);
+  const sprintDir    = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
   const masterScript = path.join(sprintDir, 'run_all_tasks.sh');
   const progressPath = path.join(sprintDir, 'progress.md');
 
@@ -259,17 +273,17 @@ async function runExecuteCommand(restArgs) {
   // Read plan to show what will be executed
   const planPath = path.join(sprintDir, 'plan.md');
   if (fs.existsSync(planPath)) {
-    const plan = fs.readFileSync(planPath, 'utf8');
+    const plan      = fs.readFileSync(planPath, 'utf8');
     const taskCount = (plan.match(/^##\s+Task/gm) || []).length;
     console.log(`   Sprint: ${sprintNum}`);
     console.log(`   Tasks:  ${taskCount}`);
     console.log(`   Script: ${masterScript}\n`);
   }
 
-  // Check model routing config
+  // Show active model routing
   const config = loadLocalConfig(cwd);
   if (config?.model_routing) {
-    console.log(`   Model Routing:`);
+    console.log(`   Model Routing (active):`);
     for (const [cat, routing] of Object.entries(config.model_routing)) {
       if (routing && typeof routing === 'object') {
         console.log(`     ${cat.padEnd(12)}: ${routing.model} (${routing.engine})`);
@@ -278,17 +292,13 @@ async function runExecuteCommand(restArgs) {
     console.log('');
   }
 
-  try {
-    fs.chmodSync(masterScript, 0o755);
-  } catch { /* ignore on Windows */ }
+  try { fs.chmodSync(masterScript, 0o755); } catch { /* ignore on Windows */ }
 
   console.log(`─`.repeat(60));
   try {
     execSync(`sh "${masterScript}"`, { stdio: 'inherit', cwd });
     console.log(`─`.repeat(60));
     console.log(`\n🏁 Sprint ${sprintNum} execution complete!\n`);
-
-    // Update compact context after sprint
     await updateCompactContext(cwd, sprintNum);
   } catch (err) {
     console.log(`─`.repeat(60));
@@ -301,37 +311,224 @@ async function runExecuteCommand(restArgs) {
 // ─── imhcode test ─────────────────────────────────────────────────────────────
 
 async function runTestCommand(restArgs) {
-  const cwd = process.cwd();
-  const lastSprint = detectLastSprint(cwd);
-  const testingSprintNum = lastSprint + 1;
-  const testSprintDir = path.join(cwd, DOCS_DIR, `sprint-${testingSprintNum}`);
-  const testScript = path.join(testSprintDir, 'run_all_tasks.sh');
+  const cwd            = process.cwd();
+  const lastSprint     = detectLastSprint(cwd);
+  const testSprintNum  = lastSprint + 1;
+  const testSprintDir  = path.join(cwd, DOCS_DIR, `sprint-${testSprintNum}`);
+  const testScript     = path.join(testSprintDir, 'run_all_tasks.sh');
 
   console.log(`\n🕌 ${PLATFORM_NAME} — Testing Sprint\n`);
 
   if (fs.existsSync(testScript)) {
-    // Run existing test sprint
-    console.log(`   Running auto-generated testing sprint (Sprint ${testingSprintNum})...\n`);
-    try {
-      fs.chmodSync(testScript, 0o755);
-    } catch { /* ignore */ }
+    console.log(`   Running auto-generated testing sprint (Sprint ${testSprintNum})...\n`);
+    try { fs.chmodSync(testScript, 0o755); } catch { /* ignore */ }
     console.log(`─`.repeat(60));
     try {
       execSync(`sh "${testScript}"`, { stdio: 'inherit', cwd });
       console.log(`─`.repeat(60));
-      console.log(`\n✅ Testing sprint complete! Check docs/sprint-${testingSprintNum}/ for reports.\n`);
+      console.log(`\n✅ Testing sprint complete! Check docs/sprint-${testSprintNum}/ for reports.\n`);
     } catch {
       console.error(`\n❌ Testing sprint failed. Check output above.\n`);
       process.exit(1);
     }
   } else {
-    // Guide user to generate the test sprint
     console.log(`   ℹ️  No testing sprint found yet.\n`);
-    console.log(`   The testing sprint is auto-generated when you run "imhcode plan" and`);
-    console.log(`   select "Fast Mode" or "Balanced Mode" for testing strategy.\n`);
+    console.log(`   The testing sprint is auto-generated when you run "imhcode plan".\n`);
     console.log(`   To generate it now, run:\n`);
-    console.log(`     imhcode agent run planner "Generate testing sprint for Sprint ${testingSprintNum}" --live\n`);
+    console.log(`     imhcode agent run planner "Generate testing sprint for Sprint ${testSprintNum}" --live\n`);
   }
+}
+
+// ─── imhcode report ───────────────────────────────────────────────────────────
+
+async function runReportCommand(restArgs) {
+  const cwd        = process.cwd();
+  const reportPath = path.join(cwd, 'PROJECT_REPORT.md');
+  const config     = loadLocalConfig(cwd);
+  const lastSprint = detectLastSprint(cwd);
+
+  console.log(`\n🕌 ${PLATFORM_NAME} — Generating Project Report\n`);
+
+  // Gather all project data
+  const briefContent       = safeRead(path.join(cwd, BRIEF_MD));
+  const brainstormContent  = safeRead(path.join(cwd, BRAINSTORM_MD));
+  const startContent       = safeRead(path.join(cwd, START_MD));
+  const contextContent     = safeRead(path.join(cwd, CONTEXT_MD));
+
+  const userPrompt = extractPromptFromStartMd(startContent || '');
+
+  // Gather sprint data
+  const sprintData = [];
+  for (let i = 1; i <= lastSprint + 1; i++) {
+    const sprintDir  = path.join(cwd, DOCS_DIR, `sprint-${i}`);
+    const planMd     = safeRead(path.join(sprintDir, 'plan.md'));
+    const progressMd = safeRead(path.join(sprintDir, 'progress.md'));
+    const deferredMd = safeRead(path.join(sprintDir, 'deferred.md'));
+    if (planMd || progressMd) {
+      sprintData.push({ sprintNum: i, plan: planMd, progress: progressMd, deferred: deferredMd });
+    }
+  }
+
+  // Build model routing summary
+  let modelRoutingSummary = '';
+  if (config?.model_routing) {
+    const rows = Object.entries(config.model_routing).map(([cat, r]) =>
+      `| ${cat.padEnd(10)} | ${(r?.engine || '?').padEnd(12)} | ${r?.model || '?'} |`
+    ).join('\n');
+    modelRoutingSummary = `| Category   | Engine       | Model |\n|------------|--------------|-------|\n${rows}`;
+  }
+
+  // Build sprint log table
+  const sprintLogTable = sprintData.map(s => {
+    const titleMatch = s.plan?.match(/^# Sprint \d+: (.+)$/m);
+    const title      = titleMatch ? titleMatch[1] : `Sprint ${s.sprintNum}`;
+    const tasksDone  = (s.progress?.match(/- \[x\]/g) || []).length;
+    const tasksTotal = (s.progress?.match(/- \[/g) || []).length;
+    const status     = tasksTotal > 0 && tasksDone === tasksTotal ? '✅ Complete' :
+                       tasksDone > 0 ? `🔄 In Progress (${tasksDone}/${tasksTotal})` : '⬜ Pending';
+    return `| ${s.sprintNum} | ${title} | ${status} |`;
+  }).join('\n');
+
+  // Build agent usage table from sprint plans
+  const agentUsage = {};
+  for (const s of sprintData) {
+    if (!s.plan) continue;
+    const agentMatches = s.plan.matchAll(/`([a-z-]+-executor|planner|designer|tester|security-auditor|seo-optimizer|debugger)`/g);
+    for (const m of agentMatches) {
+      agentUsage[m[1]] = (agentUsage[m[1]] || 0) + 1;
+    }
+  }
+  const agentTable = Object.entries(agentUsage)
+    .sort((a, b) => b[1] - a[1])
+    .map(([agent, count]) => `| \`${agent}\` | ${getAgentCategory(agent)} | ${count} tasks |`)
+    .join('\n');
+
+  // Build deferred items list
+  const deferredItems = sprintData
+    .filter(s => s.deferred && !s.deferred.includes('None yet'))
+    .map(s => `\n### Sprint ${s.sprintNum} Deferred\n\n${s.deferred}`)
+    .join('');
+
+  // Detect stack from brainstorm/context
+  const stack = [];
+  if (brainstormContent || contextContent) {
+    const combined = (brainstormContent || '') + (contextContent || '');
+    if (/next\.?js/i.test(combined))     stack.push('Next.js');
+    if (/vue/i.test(combined))            stack.push('Vue 3 / Nuxt 4');
+    if (/react\s*native/i.test(combined)) stack.push('React Native');
+    if (/flutter/i.test(combined))        stack.push('Flutter');
+    if (/laravel/i.test(combined))        stack.push('Laravel');
+    if (/django|fastapi/i.test(combined)) stack.push('Python / FastAPI');
+    if (/spring\s*boot/i.test(combined))  stack.push('Java / Spring Boot');
+    if (/postgres/i.test(combined))       stack.push('PostgreSQL');
+    if (/redis/i.test(combined))          stack.push('Redis');
+    if (/docker/i.test(combined))         stack.push('Docker');
+    if (/tailwind/i.test(combined))       stack.push('Tailwind CSS');
+    if (/shadcn/i.test(combined))         stack.push('shadcn/ui');
+  }
+
+  const report = `# 📋 IMH-Code — Project Report
+
+> **${PLATFORM_FULL}**
+> Generated: ${new Date().toLocaleString()}
+
+---
+
+## 🎯 Project Summary
+
+${userPrompt || '*(See PROJECT_BRIEF.md for details)*'}
+
+---
+
+## 🏗️ Technology Stack
+
+${stack.length > 0 ? stack.map(s => `- ${s}`).join('\n') : '*(Stack detected from brainstorming and sprint plans)*'}
+
+---
+
+## 🤖 AI Model Routing Used
+
+${modelRoutingSummary || '*(No imhcode.config.json found)*'}
+
+---
+
+## 🏃 Sprint Execution Log
+
+| Sprint | Title | Status |
+|--------|-------|--------|
+${sprintLogTable || '| — | No sprints found | — |'}
+
+---
+
+## 🔧 Agent Execution Summary
+
+| Agent | Category | Usage |
+|-------|----------|-------|
+${agentTable || '*(No sprint plans found)*'}
+
+---
+
+## 🚀 How to Run This Project
+
+\`\`\`bash
+# 1. Install dependencies
+${stack.includes('Next.js') || stack.includes('Vue 3 / Nuxt 4') ? 'cd frontend && npm install' : ''}
+${stack.includes('Laravel') ? 'cd backend && composer install && php artisan key:generate' : ''}
+${stack.includes('Python / FastAPI') ? 'cd backend && pip install -r requirements.txt' : ''}
+
+# 2. Set environment variables
+cp .env.example .env  # Edit with your config
+
+# 3. Run development server
+${stack.includes('Next.js') ? 'cd frontend && npm run dev        # → http://localhost:3000' : ''}
+${stack.includes('Vue 3 / Nuxt 4') ? 'cd frontend && npm run dev    # → http://localhost:3000' : ''}
+${stack.includes('Laravel') ? 'cd backend  && php artisan serve  # → http://localhost:8000' : ''}
+${stack.includes('Python / FastAPI') ? 'cd backend  && uvicorn main:app --reload' : ''}
+\`\`\`
+
+---
+
+## 📂 Project Structure
+
+\`\`\`
+${path.basename(cwd)}/
+├── docs/                  ← Sprint plans & documentation
+│   ├── start.md           ← Project description (input)
+│   ├── brainstorming.md   ← Brainstorming Q&A
+│   └── sprint-*/          ← Sprint plans, tasks, progress
+├── ${fs.existsSync(path.join(cwd, 'frontend')) ? 'frontend/              ← Frontend application\n├── ' : ''}${fs.existsSync(path.join(cwd, 'backend')) ? 'backend/               ← Backend application\n├── ' : ''}.imhcode/             ← IMH-Code context & sessions
+├── imhcode.config.json    ← Engine & model routing config
+└── PROJECT_BRIEF.md       ← Central project context
+\`\`\`
+
+---
+
+## 📌 Known Issues & Deferred Items
+
+${deferredItems || '*(No deferred items logged)*'}
+
+---
+
+## 📊 Development Metrics
+
+| Metric | Value |
+|--------|-------|
+| Total Sprints | ${sprintData.length} |
+| Agents Used | ${Object.keys(agentUsage).length} |
+| Testing Mode | ${config?.testing_mode || 'fast'} |
+| Primary Engine | ${config?.primary_engine || 'N/A'} |
+
+---
+
+*Report generated by ${PLATFORM_NAME} — ${PLATFORM_FULL}*
+`;
+
+  fs.writeFileSync(reportPath, report, 'utf8');
+  console.log(`✅ PROJECT_REPORT.md created!\n`);
+  console.log(`   Path: ${reportPath}`);
+  console.log(`   Sprints covered: ${sprintData.length}`);
+  console.log(`   Agents referenced: ${Object.keys(agentUsage).length}\n`);
+  console.log(`   Share this file with your team for a complete project overview.\n`);
 }
 
 // ─── imhcode agent ────────────────────────────────────────────────────────────
@@ -340,9 +537,9 @@ async function runAgentCommand(subcommand, restArgs) {
   const orchestrator = loadOrchestrator();
 
   switch (subcommand) {
-    case 'list':   return cmdList(orchestrator, restArgs);
+    case 'list':    return cmdList(orchestrator, restArgs);
     case 'inspect': return cmdInspect(orchestrator, restArgs);
-    case 'run':    return cmdRun(orchestrator, restArgs);
+    case 'run':     return cmdRun(orchestrator, restArgs);
     default:
       printAgentHelp();
       process.exit(0);
@@ -391,49 +588,33 @@ async function cmdList(orc, _args) {
     return;
   }
 
+  const config = loadLocalConfig(cwd);
+
   const rows = [...agents.values()].map(a => ({
-    id: a.manifest.id,
-    role: a.manifest.role,
-    model: a.manifest.default_model,
+    id:       a.manifest.id,
+    role:     a.manifest.role,
     category: getAgentCategory(a.manifest.id),
+    model:    config?.model_routing?.[getAgentCategory(a.manifest.id)]?.model || a.manifest.default_model,
+    engine:   config?.model_routing?.[getAgentCategory(a.manifest.id)]?.engine || '?',
   }));
 
-  console.log('┌─────────────────────────────────────────────────────────────────────────────┐');
-  console.log(`│  ${PLATFORM_NAME} — AGENT REGISTRY                                         │`);
-  console.log('├──────────────────────────┬────────────────┬──────────────┬──────────────────┤');
-  console.log('│  ID                      │  Category      │  Model       │  Role            │');
-  console.log('├──────────────────────────┼────────────────┼──────────────┼──────────────────┤');
+  const colId   = Math.max(...rows.map(r => r.id.length),   2);
+  const colRole = Math.max(...rows.map(r => r.role.length),  4);
+  const colCat  = Math.max(...rows.map(r => r.category.length), 8);
+  const colEng  = Math.max(...rows.map(r => r.engine.length), 6);
 
-  for (const row of rows) {
-    const id  = row.id.padEnd(24).slice(0, 24);
-    const cat = row.category.padEnd(14).slice(0, 14);
-    const mdl = row.model.padEnd(12).slice(0, 12);
-    const rol = row.role.padEnd(16).slice(0, 16);
-    console.log(`│  ${id}  │  ${cat}  │  ${mdl}  │  ${rol}  │`);
+  console.log(`  ${'ID'.padEnd(colId)}  ${'Role'.padEnd(colRole)}  ${'Category'.padEnd(colCat)}  ${'Engine'.padEnd(colEng)}  Model`);
+  console.log(`  ${'─'.repeat(colId)}  ${'─'.repeat(colRole)}  ${'─'.repeat(colCat)}  ${'─'.repeat(colEng)}  ${'─'.repeat(32)}`);
+
+  for (const r of rows) {
+    console.log(`  ${r.id.padEnd(colId)}  ${r.role.padEnd(colRole)}  ${r.category.padEnd(colCat)}  ${r.engine.padEnd(colEng)}  ${r.model}`);
   }
-
-  console.log('└──────────────────────────┴────────────────┴──────────────┴──────────────────┘');
-  console.log(`\n  Total: ${agents.size} agent(s)  │  Use "imhcode agent inspect <id>" for details.\n`);
 
   if (errors.length > 0) {
-    console.log(`⚠️  ${errors.length} agent(s) failed to load:\n`);
-    for (const { agentId, error } of errors) {
-      console.log(`  ❌ ${agentId}: ${error.split('\n')[0]}\n`);
-    }
+    console.log(`\n  ⚠️  ${errors.length} agent(s) failed to load:`);
+    errors.forEach(e => console.log(`    • ${e.agentId}: ${e.error}`));
   }
-}
-
-function getAgentCategory(agentId) {
-  const map = {
-    'planner': 'planning', 'designer': 'frontend',
-    'nextjs-executor': 'frontend', 'react-executor': 'frontend', 'vue-executor': 'frontend',
-    'laravel-executor': 'backend', 'python-executor': 'backend', 'java-executor': 'backend',
-    'flutter-executor': 'backend', 'react-native-executor': 'backend', 'ios-executor': 'backend',
-    'android-executor': 'backend', 'systems-executor': 'backend', 'web3-executor': 'backend',
-    'devops-executor': 'backend', 'tester': 'testing', 'security-auditor': 'testing',
-    'seo-optimizer': 'review', 'debugger': 'review',
-  };
-  return map[agentId] || 'backend';
+  console.log('');
 }
 
 async function cmdInspect(orc, args) {
@@ -444,7 +625,7 @@ async function cmdInspect(orc, args) {
   }
 
   const agentsDir = resolveAgentsDir();
-  const cwd = process.cwd();
+  const cwd       = process.cwd();
   console.log(`\n🔍 Loading agent: ${agentId}\n`);
 
   const { agents, errors } = await orc.loadRegistry(agentsDir, cwd);
@@ -459,36 +640,47 @@ async function cmdInspect(orc, args) {
   const { manifest, systemPrompt, skills, dir } = agent;
   const divider = '─'.repeat(72);
 
-  // Load config to show routing
-  const config = loadLocalConfig(cwd);
+  const config   = loadLocalConfig(cwd);
   const category = getAgentCategory(manifest.id);
-  const routing = config?.model_routing?.[category];
+  const routing  = config?.model_routing?.[category];
 
   console.log(divider);
   console.log(`  ${manifest.name}  (v${manifest.version})`);
   console.log(divider);
-  console.log(`  ID:           ${manifest.id}`);
-  console.log(`  Role:         ${manifest.role}`);
-  console.log(`  Category:     ${category}`);
-  console.log(`  Description:  ${manifest.description.replace(/\n\s*/g, ' ')}`);
-  console.log(`  Directory:    ${dir}`);
+  console.log(`  ID:            ${manifest.id}`);
+  console.log(`  Role:          ${manifest.role}`);
+  console.log(`  Category:      ${category}`);
+  console.log(`  Description:   ${manifest.description.replace(/\n\s*/g, ' ')}`);
+  console.log(`  Directory:     ${dir}`);
   console.log(`  Default Model: ${manifest.default_model}`);
   if (routing) {
-    console.log(`  Routed Model: ${routing.model} via ${routing.engine} (from imhcode.config.json)`);
+    console.log(`  Routed Model:  ${routing.model} via ${routing.engine} (from imhcode.config.json) ✅`);
+  } else {
+    console.log(`  Routed Model:  (none — run imhcode to configure model routing)`);
   }
-  console.log(`  Fallbacks:    ${manifest.fallback_engines.join(', ') || '(none)'}`);
+  console.log(`  Fallbacks:     ${manifest.fallback_engines.join(', ') || '(none)'}`);
   console.log(`\n  Core Skills: ${skills.length} loaded`);
-  for (const skill of skills) {
-    console.log(`    ► ${skill.id}`);
-  }
-  console.log(`\n${divider}\n`);
-  console.log(`  Run this agent with:`);
-  console.log(`    imhcode agent run ${manifest.id} "Your task" --live\n`);
+  skills.forEach(s => console.log(`    • ${s.name} — ${s.description?.slice(0, 80) ?? ''}`));
+
+  const promptLines = systemPrompt.split('\n').length;
+  console.log(`\n  System Prompt: ${promptLines} lines\n`);
+  console.log(divider + '\n');
+}
+
+function printAgentHelp() {
+  console.log(`\n  ${PLATFORM_NAME} — Agent Commands\n`);
+  console.log(`  imhcode agent list                  → List all agents with routed models`);
+  console.log(`  imhcode agent inspect <id>           → Show agent details + routing`);
+  console.log(`  imhcode agent run <id> "<task>"      → Dry-run (no LLM call)`);
+  console.log(`  imhcode agent run <id> "<task>" --live → Call real LLM with routed model`);
+  console.log(`    --engine <cli>  → Override engine`);
+  console.log(`    -m, --model <m> → Override model`);
+  console.log(`    --output <path> → Save session to custom path\n`);
 }
 
 async function cmdRun(orc, args) {
   const agentId = args[0];
-  const task = args[1];
+  const task    = args[1];
 
   if (!agentId || !task) {
     console.error(`❌ Usage: imhcode agent run <agent-id> "<task description>" [options]`);
@@ -499,23 +691,27 @@ async function cmdRun(orc, args) {
     process.exit(1);
   }
 
-  const restArgs = args.slice(2);
-  const live = restArgs.includes('--live');
-  const engineIdx = restArgs.indexOf('--engine');
-  const engine = engineIdx >= 0 ? restArgs[engineIdx + 1] : undefined;
-  const mIndex = restArgs.indexOf('--model');
-  const shortMIndex = restArgs.indexOf('-m');
-  const modelIdx = mIndex >= 0 ? mIndex : shortMIndex;
-  const model = modelIdx >= 0 ? restArgs[modelIdx + 1] : undefined;
-  const criteriaIdx = restArgs.indexOf('--criteria');
-  const criteria = criteriaIdx >= 0 ? restArgs[criteriaIdx + 1] : undefined;
-  const outputIdx = restArgs.indexOf('--output');
-  const outputDir = outputIdx >= 0 ? restArgs[outputIdx + 1] : undefined;
+  const restArgs     = args.slice(2);
+  const live         = restArgs.includes('--live');
+  const engineIdx    = restArgs.indexOf('--engine');
+  const engine       = engineIdx >= 0 ? restArgs[engineIdx + 1] : undefined;
+  const mIndex       = restArgs.indexOf('--model');
+  const shortMIndex  = restArgs.indexOf('-m');
+  const modelIdx     = mIndex >= 0 ? mIndex : shortMIndex;
+  const model        = modelIdx >= 0 ? restArgs[modelIdx + 1] : undefined;
+  const criteriaIdx  = restArgs.indexOf('--criteria');
+  const criteria     = criteriaIdx >= 0 ? restArgs[criteriaIdx + 1] : undefined;
+  const outputIdx    = restArgs.indexOf('--output');
+  const outputDir    = outputIdx >= 0 ? restArgs[outputIdx + 1] : undefined;
 
   const agentsDir = resolveAgentsDir();
-  const cwd = process.cwd();
-  const config = loadLocalConfig(cwd);
-  const category = getAgentCategory(agentId);
+  const cwd       = process.cwd();
+  const config    = loadLocalConfig(cwd);
+  const category  = getAgentCategory(agentId);
+
+  // Fix 0b Part A: Auto-inject routing when no explicit override provided
+  const routedEngine = engine ?? config?.model_routing?.[category]?.engine;
+  const routedModel  = model  ?? config?.model_routing?.[category]?.model;
 
   console.log(`\n🕌 ${PLATFORM_NAME} — Agent Execution`);
   console.log(`   Agent:    ${agentId}`);
@@ -523,12 +719,10 @@ async function cmdRun(orc, args) {
   console.log(`   Task:     ${task}`);
   console.log(`   Mode:     ${live ? '🔴 LIVE (CLI execution)' : '🟡 DRY-RUN (no CLI execution)'}`);
 
-  // Show which model will be used
-  if (!engine && !model && config?.model_routing?.[category]) {
-    const r = config.model_routing[category];
-    console.log(`   Model:    ${r.model} via ${r.engine} (from routing config)`);
-  } else if (model) {
-    console.log(`   Model:    ${model} (explicit override)`);
+  if (engine || model) {
+    console.log(`   Model:    ${routedModel} via ${routedEngine} (explicit override)`);
+  } else if (routedEngine && routedModel) {
+    console.log(`   Model:    ${routedModel} via ${routedEngine} (auto from imhcode.config.json ✅)`);
   }
   console.log('');
 
@@ -540,62 +734,43 @@ async function cmdRun(orc, args) {
     process.exit(1);
   }
 
-  const agent = orc.getAgent(agents, agentId);
-  const result = await orc.runAgent(agent, task, { dryRun: !live, engine, model, outputDir, cwd }, criteria);
+  const agent  = orc.getAgent(agents, agentId);
+
+  // Pass the routed engine + model to runAgent (Fix 0b Part A)
+  const result = await orc.runAgent(
+    agent, task,
+    { dryRun: !live, engine: routedEngine, model: routedModel, outputDir, cwd },
+    criteria
+  );
 
   console.log('\n' + '─'.repeat(72));
   if (result.errors.length > 0 && !result.dryRun) {
     console.error(`\n❌ [IMH-Code] Execution failed with errors:`);
     result.errors.forEach(e => console.error(`   • ${e}`));
-    
-    // Check if the error is a limit/failover exhaustion
+
     const isLimitExhausted = result.errors.some(e => e.includes('limits') && e.includes('exhausted'));
     if (isLimitExhausted) {
       const currentSprint = detectCurrentSprint(cwd);
       console.error(`\n💡 [IMH-Code] All available assistant engines hit rate/token/quota limits.`);
-      console.error(`   The context has been saved in the session logs: ${result.sessionDir || 'sessions/'}`);
-      console.error(`   Please wait for your limits/quotas to reset, then resume development by running:`);
+      console.error(`   Context saved in: ${result.sessionDir || 'sessions/'}`);
+      console.error(`   Wait for limits to reset, then resume with:`);
       console.error(`     imhcode execute ${currentSprint}\n`);
     }
     process.exit(1);
   }
 
-  console.log(`\n✅ Execution complete`);
-  console.log(`   Duration:    ${result.durationMs}ms`);
-  console.log(`   Model:       ${result.model}`);
-  console.log(`   Dry-run:     ${result.dryRun}`);
-  if (result.sessionDir) console.log(`   Session log: ${result.sessionDir}`);
-  console.log('');
-}
-
-function printAgentHelp() {
-  console.log(`
-  imhcode agent <subcommand>
-
-  Subcommands:
-    list                          List all 19 generic agents
-    inspect <id>                  Show agent manifest, skills, and routing
-    run <id> "<task>" [flags]     Build prompt and run
-
-  Flags for "run":
-    --live                        Run live LLM execution
-    --engine <cli>                Override engine (claude|opencode|codex|agy|qwen|mimo)
-    -m, --model <model>           Override model
-    --criteria "<string>"         Acceptance criteria
-    --output <path>               Custom session directory
-
-  Agent IDs (short aliases work too):
-    planner           (alias: plan, pm, orchestrator)
-    nextjs-executor   (alias: nextjs, next)
-    laravel-executor  (alias: laravel, php)
-    react-executor    (alias: react, vite)
-    vue-executor      (alias: vue, nuxt)
-    python-executor   (alias: python, django, fastapi)
-    tester            (alias: qa, test)
-    security-auditor  (alias: security, audit)
-    debugger          (alias: debug, fix)
-    ... and more (run imhcode agent list)
-  `);
+  if (result.dryRun) {
+    console.log(`\n🟡 [DRY-RUN] Prompt built successfully — ${result.prompt.split('\n').length} lines`);
+    console.log(`   Would execute with: ${routedModel || 'default'} via ${routedEngine || 'default'}`);
+    console.log(`   Use --live to run with the real LLM.\n`);
+    if (result.output) console.log(result.output);
+  } else {
+    console.log(`\n✅ [IMH-Code] Task executed successfully`);
+    console.log(`   Model:    ${result.model}`);
+    console.log(`   Duration: ${(result.durationMs / 1000).toFixed(1)}s`);
+    if (result.sessionDir) console.log(`   Session:  ${result.sessionDir}`);
+    console.log('');
+  }
 }
 
 // ─── Legacy Sprint Commands ────────────────────────────────────────────────────
@@ -612,7 +787,7 @@ async function runSprintLegacyCommand(subcommand, restArgs) {
 }
 
 async function cmdSprintDesign(restArgs) {
-  const cwd = process.cwd();
+  const cwd       = process.cwd();
   const sprintNum = resolveSprintNum(restArgs, cwd);
   const sprintDir = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
 
@@ -649,9 +824,9 @@ async function runInit() {
   console.log(`\n🕌 Initializing ${PLATFORM_NAME}...\n`);
   console.log(`   ${PLATFORM_FULL}\n`);
 
-  const packageRoot = path.join(__dirname, '..');
-  const imhcodeScriptPath = path.join(packageRoot, 'bin', 'imhcode.js');
-  const cwd = process.cwd();
+  const packageRoot        = path.join(__dirname, '..');
+  const imhcodeScriptPath  = path.join(packageRoot, 'bin', 'imhcode.js');
+  const cwd                = process.cwd();
 
   // Ensure global ~/.imhcode exists
   if (!fs.existsSync(GLOBAL_DIR)) {
@@ -659,14 +834,14 @@ async function runInit() {
   }
 
   const itemsToCopy = [
-    { src: '.github',         dest: '.github',         desc: 'GitHub integration files' },
-    { src: 'AGENTS.md',       dest: 'AGENTS.md',       desc: 'Agent manifest' },
-    { src: 'CLAUDE.md',       dest: 'CLAUDE.md',       desc: 'Claude/Cursor/Copilot integration' },
-    { src: '.gitignore.template', dest: '.gitignore',  desc: 'Auto-generated gitignore' },
-    { src: 'SETUP.md',        dest: 'SETUP.md',        desc: 'Setup guide' },
-    { src: 'USER_MANUAL.md',  dest: 'USER_MANUAL.md',  desc: 'User manual' },
-    { src: 'agents',          dest: 'agents',          desc: 'YAML-driven agent manifests' },
-    { src: 'skills',          dest: 'skills',          desc: 'Skill library (SKILL.md files)' },
+    { src: '.github',             dest: '.github',         desc: 'GitHub integration files' },
+    { src: 'AGENTS.md',           dest: 'AGENTS.md',       desc: 'Agent manifest' },
+    { src: 'CLAUDE.md',           dest: 'CLAUDE.md',       desc: 'Claude/Cursor/Copilot integration' },
+    { src: '.gitignore.template', dest: '.gitignore',      desc: 'Auto-generated gitignore' },
+    { src: 'SETUP.md',            dest: 'SETUP.md',        desc: 'Setup guide' },
+    { src: 'USER_MANUAL.md',      dest: 'USER_MANUAL.md',  desc: 'User manual' },
+    { src: 'agents',              dest: 'agents',          desc: 'YAML-driven agent manifests' },
+    { src: 'skills',              dest: 'skills',          desc: 'Skill library (SKILL.md files)' },
   ];
 
   // Copy to global ~/.imhcode (unconditionally overwrite to apply updates)
@@ -709,9 +884,11 @@ async function runInit() {
     }
   }
 
-  // Create local workspace directories
+  // Fix 1: Create only ESSENTIAL local directories at init time.
+  // frontend/, backend/, .worktrees/ are created LATER in generateSprintPlans()
+  // after brainstorming answers confirm what the user actually needs.
   const dirsToCreate = [
-    'frontend', 'backend', '.worktrees', DOCS_DIR,
+    DOCS_DIR,
     LOCAL_DIR_NAME,
     path.join(LOCAL_DIR_NAME, 'commands'),
     path.join(LOCAL_DIR_NAME, 'sessions'),
@@ -724,39 +901,52 @@ async function runInit() {
     }
   }
 
-  // Create docs/start.md template
+  // Fix 2: Create docs/start.md template with scope questions
   const startMdPath = path.join(cwd, START_MD);
   if (!fs.existsSync(startMdPath)) {
-    const startMdContent = `# 🕌 IMH-Code — Project Start
-
-> **Imam Hussain Coding Harness Platform**
-> Write your project description below, then run \`imhcode plan\`.
-
----
-
-## 📝 Your Project Description
-
-Write your complete project idea below the markers. Be as detailed as possible.
-Include: what you're building, who it's for, key features, preferred stack (if any).
-
-<!-- WRITE_PROMPT_HERE -->
-I want to build a SaaS dashboard for managing hotel room bookings with real-time availability, 
-a Next.js frontend, Laravel API backend, and PostgreSQL database.
-<!-- END_PROMPT -->
-
----
-
-## 🚀 Next Step
-
-After writing your description, run in your terminal:
-
-\`\`\`bash
-imhcode plan
-\`\`\`
-
-This will analyze your description and generate **docs/brainstorming.md** with
-smart questions about your project, with recommended answers you can review and edit.
-`;
+    const startMdContent = [
+      '# 🕌 IMH-Code — Project Start',
+      '',
+      '> **Imam Hussain Coding Harness Platform**',
+      '> Answer the scope questions below, write your description, then run `imhcode plan`.',
+      '',
+      '---',
+      '',
+      '## ⚡ Quick Scope Check',
+      '',
+      '**Do you need a backend API / server-side logic?**',
+      '> **Answer:** yes  *(change to: yes / no / unsure)*',
+      '',
+      '**Do you need a mobile app (iOS/Android)?**',
+      '> **Answer:** no  *(change to: yes / no)*',
+      '',
+      '---',
+      '',
+      '## 📝 Your Project Description',
+      '',
+      'Write your complete project idea below. Be as detailed as possible.',
+      'Include: what you\'re building, who it\'s for, key features, preferred stack,',
+      'design preferences, integrations needed, business constraints.',
+      '',
+      '<!-- WRITE_PROMPT_HERE -->',
+      'I want to build a SaaS dashboard for managing hotel room bookings with real-time availability,',
+      'a Next.js frontend, Laravel API backend, and PostgreSQL database. Target users are hotel managers.',
+      'Key features: room calendar, booking CRUD, guest management, reporting, email notifications.',
+      '<!-- END_PROMPT -->',
+      '',
+      '---',
+      '',
+      '## 🚀 Next Step',
+      '',
+      'After filling in the scope and your description, run:',
+      '',
+      '```bash',
+      'imhcode plan',
+      '```',
+      '',
+      'IMH-Code will invoke your configured **planning AI model** (e.g. Claude Opus, GPT-5.5)',
+      'to generate `docs/brainstorming.md` with smart, project-specific questions and answers.',
+    ].join('\n');
     fs.writeFileSync(startMdPath, startMdContent, 'utf8');
     console.log(`  Created docs/start.md (write your project here)`);
   }
@@ -776,7 +966,7 @@ smart questions about your project, with recommended answers you can review and 
 
   // ── Interactive Engine & Model Setup ────────────────────────────────────────
   console.log('\n🔍 Scanning for local coding assistant CLIs...');
-  const engines = scanAssistantCLIs();
+  const engines     = scanAssistantCLIs();
   const foundEngines = Object.keys(engines).filter(k => engines[k].path);
 
   if (foundEngines.length === 0) {
@@ -835,22 +1025,22 @@ smart questions about your project, with recommended answers you can review and 
     console.log(`✅ Default model: ${defaultModel}`);
   }
 
-  // ── Smart Model Routing Setup ────────────────────────────────────────────────
+  // Fix 4: Smart Model Routing Setup with ranked scoring
   const modelRouting = await setupModelRouting(engines, foundEngines, isInteractive);
 
   // Write config
   const configPath = path.join(cwd, CONFIG_FILE);
   const configData = {
     primary_engine: primaryEngine,
-    default_model: defaultModel || undefined,
-    testing_mode: 'fast',
-    model_routing: modelRouting,
+    default_model:  defaultModel || undefined,
+    testing_mode:   'fast',
+    model_routing:  modelRouting,
     available_engines: {},
   };
 
   for (const key of foundEngines) {
     configData.available_engines[key] = {
-      path: engines[key].path,
+      path:   engines[key].path,
       models: engines[key].models,
     };
   }
@@ -862,100 +1052,163 @@ smart questions about your project, with recommended answers you can review and 
   console.log(`\n✅ ${PLATFORM_NAME} initialized successfully!`);
   console.log(`─`.repeat(60));
   console.log(`\n🕌 HOW TO BUILD WITH IMH-CODE:\n`);
-  console.log(`  1. Open docs/start.md → Write your project description`);
+  console.log(`  1. Open docs/start.md → Answer scope questions + write your description`);
   console.log(`  2. Run: imhcode plan`);
-  console.log(`     → Generates docs/brainstorming.md with smart questions`);
-  console.log(`  3. Open docs/brainstorming.md → Review/edit answers`);
+  console.log(`     → Your planning AI (${modelRouting?.planning?.model || 'configured model'}) generates brainstorming.md`);
+  console.log(`  3. Open docs/brainstorming.md → Review/edit AI-recommended answers`);
   console.log(`  4. Run: imhcode plan`);
-  console.log(`     → Reads your answers → generates sprint plans`);
-  console.log(`  5. Run: imhcode execute 1   → Execute Sprint 1`);
-  console.log(`  6. Run: imhcode execute 2   → Execute Sprint 2`);
+  console.log(`     → Your planning AI generates sprint plans with correct agent routing`);
+  console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks → ${modelRouting?.frontend?.model || 'frontend model'})`);
+  console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks → ${modelRouting?.backend?.model || 'backend model'})`);
   console.log(`  7. Run: imhcode test        → Final testing + security + SEO`);
+  console.log(`  8. Run: imhcode report      → Generate PROJECT_REPORT.md`);
   console.log(`\n  Run "imhcode --help" for all commands.`);
   console.log(`─`.repeat(60));
   console.log('');
 }
 
-// ─── Model Routing Setup Wizard ───────────────────────────────────────────────
+// ─── Fix 4: Model Routing Setup Wizard (Ranked Scoring Algorithm) ─────────────
+
+/**
+ * Ranked priority lists per category.
+ * The algorithm scores each available model against these lists
+ * and selects the highest-ranked match found in the installed engines.
+ */
+const MODEL_PRIORITY_RANKS = {
+  frontend: [
+    // Engine       Model substring to match (lowercase, no hyphens/dots)
+    ['mimo',      'mimov25pro'],
+    ['mimo',      'mimov25'],
+    ['opencode',  'mimov25pro'],
+    ['opencode',  'mimov25'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['opencode',  'gemini35flash'],
+    ['opencode',  'gemini25pro'],
+    ['claude',    'claudeopus46'],
+    ['claude',    'opus'],
+  ],
+  backend: [
+    ['opencode',  'deepseekv4pro'],
+    ['opencode',  'deepseekv4'],
+    ['opencode',  'kimik27code'],
+    ['opencode',  'kimik2'],
+    ['opencode',  'qwen3coder480b'],
+    ['opencode',  'qwen3coder'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['opencode',  'gptoss120b'],
+    ['qwen',      'qwen3codermax'],
+    ['qwen',      'qwen3coder'],
+    ['claude',    'claudesonnet46'],
+    ['claude',    'sonnet'],
+  ],
+  planning: [
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['claude',    'claudeopus46'],
+    ['claude',    'opus'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['opencode',  'gemini31propreview'],
+    ['opencode',  'gemini31pro'],
+    ['opencode',  'deepseekv4pro'],
+  ],
+  testing: [
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'gptoss120bmedium'],
+    ['agy',       'gptoss120b'],
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['opencode',  'deepseekv4pro'],
+    ['claude',    'claudeopus46'],
+  ],
+  review: [
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'claudesonnet46'],
+    ['agy',       'claudesonnet'],
+    ['opencode',  'gptoss120b'],
+    ['claude',    'claudesonnet46'],
+    ['opencode',  'deepseekv4pro'],
+  ],
+  fast: [
+    ['opencode',  'deepseekv4flash'],
+    ['opencode',  'deepseekv4flash'],
+    ['opencode',  'gemini35flash'],
+    ['codex',     'gpt54mini'],
+    ['codex',     'gptmini'],
+    ['qwen',      'qwen3coderflash'],
+    ['claude',    'claudehaiku35'],
+    ['claude',    'haiku'],
+  ],
+};
+
+/**
+ * Normalize a model/engine string for fuzzy matching:
+ * lowercase, remove hyphens, dots, underscores, spaces.
+ */
+function normalizeForMatch(s) {
+  return (s || '').toLowerCase().replace(/[-._\s]/g, '');
+}
+
+/**
+ * Select the best model for a category from available engines using ranked scoring.
+ * Returns { engine, model } or null if nothing found.
+ */
+function selectBestModel(category, engines) {
+  const ranks = MODEL_PRIORITY_RANKS[category] || [];
+  for (const [preferredEngine, modelSubstring] of ranks) {
+    const engData = engines[preferredEngine];
+    if (!engData?.path || !engData.models?.length) continue;
+    const match = engData.models.find(m => normalizeForMatch(m).includes(modelSubstring));
+    if (match) return { engine: preferredEngine, model: match };
+  }
+  return null;
+}
 
 async function setupModelRouting(engines, foundEngines, isInteractive) {
   const categories = {
-    frontend: {
-      label: 'Frontend (UI/UX, components, animations)',
-      note: 'Mimo v2.5 Pro preferred → GPT-5.5 → Claude Opus',
-      preferredEngines: ['mimo', 'codex', 'claude', 'opencode'],
-      preferredModels: ['mimo-vl-v2.5-pro', 'gpt-5.5', 'claude-opus-4-6', 'deepseek-v4-pro'],
-    },
-    backend: {
-      label: 'Backend (APIs, database, business logic)',
-      note: 'DeepSeek V4 Pro preferred → GPT-5.5 → Qwen Coder',
-      preferredEngines: ['opencode', 'codex', 'qwen', 'claude'],
-      preferredModels: ['deepseek-v4-pro', 'gpt-5.5', 'qwen3-coder-max', 'claude-sonnet-4-5'],
-    },
-    planning: {
-      label: 'Planning (brainstorming, sprint planning, architecture)',
-      note: 'Claude Opus preferred → GPT-5.5',
-      preferredEngines: ['claude', 'codex', 'opencode'],
-      preferredModels: ['claude-opus-4-6', 'gpt-5.5', 'deepseek-v4-pro'],
-    },
-    testing: {
-      label: 'Testing (QA, security audit, E2E)',
-      note: 'GPT-5.5 preferred → Claude Opus → DeepSeek',
-      preferredEngines: ['codex', 'claude', 'opencode'],
-      preferredModels: ['gpt-5.5', 'claude-opus-4-6', 'deepseek-v4-pro'],
-    },
-    review: {
-      label: 'Review (SEO, debugging, code review)',
-      note: 'GPT-5.5 preferred → Claude Sonnet',
-      preferredEngines: ['codex', 'claude', 'opencode'],
-      preferredModels: ['gpt-5.5', 'claude-sonnet-4-5', 'deepseek-v4'],
-    },
-    fast: {
-      label: 'Fast (boilerplate, config, simple tasks)',
-      note: 'DeepSeek V4 Flash preferred → Gemini Flash → GPT Mini',
-      preferredEngines: ['opencode', 'codex', 'qwen', 'claude'],
-      preferredModels: ['deepseek-v4-flash', 'gpt-5.4-mini', 'qwen3-coder-flash', 'claude-haiku-3-5'],
-    },
+    frontend: { label: 'Frontend (UI/UX, components, animations)',         note: 'Mimo v2.5 Pro → GPT-5.5 → Claude Opus' },
+    backend:  { label: 'Backend (APIs, database, business logic)',          note: 'DeepSeek V4 Pro → Kimi K2.7 → Qwen3 Coder → GPT-5.5' },
+    planning: { label: 'Planning (brainstorming, sprint planning)',         note: 'Claude Opus 4.6 → GPT-5.5 → Gemini 3.1 Pro' },
+    testing:  { label: 'Testing (QA, security audit, E2E)',                note: 'GPT-5.5 → GPT-OSS 120B → Claude Opus' },
+    review:   { label: 'Review (SEO, debugging, code review)',             note: 'GPT-5.5 → Claude Sonnet → GPT-OSS 120B' },
+    fast:     { label: 'Fast (boilerplate, config, simple tasks)',         note: 'DeepSeek V4 Flash → Gemini 3.5 Flash → GPT Mini' },
   };
 
-  const routing = {};
-
-  // Build recommended routing from available engines
   const recommended = {};
-  for (const [cat, cfg] of Object.entries(categories)) {
-    let found = false;
-    for (let i = 0; i < cfg.preferredEngines.length; i++) {
-      const eng = cfg.preferredEngines[i];
-      const mdl = cfg.preferredModels[i];
-      const engData = engines[eng];
-      if (engData?.path && engData.models.length > 0) {
-        const match = engData.models.find(m => m.toLowerCase().includes(mdl.replace(/-/g, '').replace(/\./g, '')));
-        recommended[cat] = { engine: eng, model: match || engData.models[0] };
-        found = true;
-        break;
-      }
-    }
-    if (!found && foundEngines.length > 0) {
-      // Fallback to primary engine
+  for (const cat of Object.keys(categories)) {
+    const best = selectBestModel(cat, engines);
+    if (best) {
+      recommended[cat] = best;
+    } else if (foundEngines.length > 0) {
+      // Fallback: primary engine first model
       const fe = foundEngines[0];
       recommended[cat] = { engine: fe, model: engines[fe].models[0] || 'default' };
     }
   }
 
   // Show recommended routing table
-  console.log('\n' + '─'.repeat(60));
-  console.log('🧠 Recommended Model Routing (based on your installed engines):\n');
-  console.log('  Category      │ Engine       │ Model');
-  console.log('  ─────────────────────────────────────────────────────────');
+  console.log('\n' + '─'.repeat(70));
+  console.log('🧠 Recommended Model Routing (ranked by quality for each category):\n');
+  console.log('  Category      │ Engine        │ Model');
+  console.log('  ──────────────┼───────────────┼───────────────────────────────────────');
   for (const [cat, rec] of Object.entries(recommended)) {
     const catLabel = cat.padEnd(12);
-    const eng = (rec.engine || '?').padEnd(12);
-    const mdl = rec.model || '?';
-    const cfg = categories[cat];
-    console.log(`  ${catLabel}  │ ${eng}  │ ${mdl}`);
+    const eng      = (rec.engine || '?').padEnd(13);
+    const mdl      = rec.model || '?';
+    const note     = categories[cat]?.note || '';
+    console.log(`  ${catLabel}  │ ${eng} │ ${mdl}`);
   }
-  console.log('  ' + '─'.repeat(57));
-  console.log(`\n  Preferences: ${categories.frontend.note}`);
+  console.log('  ' + '─'.repeat(67));
+  console.log(`\n  Priority: Mimo v2.5 Pro (frontend) | DeepSeek V4 Pro (backend)`);
+  console.log(`            Claude Opus (planning)   | GPT-5.5 (testing/review)`);
+
+  const routing = {};
 
   if (isInteractive) {
     const answer = await askQuestion('\nAccept recommended routing? [Y/n] ');
@@ -963,9 +1216,8 @@ async function setupModelRouting(engines, foundEngines, isInteractive) {
       // Let user customize each category
       for (const [cat, cfg] of Object.entries(categories)) {
         console.log(`\n  Configure model for [${cat}] — ${cfg.label}`);
-        console.log(`  (${cfg.note})`);
+        console.log(`  Priority: ${cfg.note}`);
 
-        // Collect all available models across all engines
         const allModels = [];
         for (const eng of foundEngines) {
           for (const m of engines[eng].models) {
@@ -979,9 +1231,9 @@ async function setupModelRouting(engines, foundEngines, isInteractive) {
         }
 
         allModels.forEach((item, i) => {
-          const rec = recommended[cat];
+          const rec   = recommended[cat];
           const isRec = rec && rec.engine === item.engine && rec.model === item.model;
-          console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended' : ''}`);
+          console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended ✅' : ''}`);
         });
 
         let selectedIdx = allModels.findIndex(m => {
@@ -1011,27 +1263,208 @@ async function setupModelRouting(engines, foundEngines, isInteractive) {
   return routing;
 }
 
-// ─── Brainstorming Generator ───────────────────────────────────────────────────
+// ─── Fix 0: LLM-Powered Planning ─────────────────────────────────────────────
 
-async function generateBrainstormingDoc(cwd, userPrompt) {
-  // Analyze keywords in the prompt to determine which sections to include
+/**
+ * Invoke the configured planning engine to generate brainstorming or sprint plans.
+ * Uses the orchestrator's runAgent() so failover, logging, and routing all work.
+ *
+ * @param {string} promptText - The full system prompt to send to the planning LLM
+ * @param {object} config     - Loaded imhcode.config.json
+ * @param {string} cwd        - Current working directory
+ * @returns {string} The LLM output text, or null if unavailable
+ */
+async function invokePlanningLLM(promptText, config, cwd) {
+  // Check if orchestrator is built
+  const distPath = path.join(__dirname, '..', 'dist', 'orchestrator', 'index.js');
+  if (!fs.existsSync(distPath)) {
+    console.warn('  ⚠️  Orchestrator not built — falling back to static template.');
+    console.warn('  Run "npm run build" in the imhcode package to enable LLM-powered planning.');
+    return null;
+  }
+
+  const planningEngine = config?.model_routing?.planning?.engine;
+  const planningModel  = config?.model_routing?.planning?.model;
+
+  if (!planningEngine || !planningModel) {
+    console.warn('  ⚠️  No planning model configured — falling back to static template.');
+    console.warn('  Run "imhcode" to set up model routing.');
+    return null;
+  }
+
+  try {
+    const orc       = require(distPath);
+    const agentsDir = (() => {
+      const g = path.join(GLOBAL_DIR, 'agents');
+      if (fs.existsSync(g)) return g;
+      const l = path.join(cwd, 'agents');
+      if (fs.existsSync(l)) return l;
+      const p = path.join(__dirname, '..', 'agents');
+      if (fs.existsSync(p)) return p;
+      return null;
+    })();
+
+    if (!agentsDir) {
+      console.warn('  ⚠️  No agents directory found — falling back to static template.');
+      return null;
+    }
+
+    const { agents } = await orc.loadRegistry(agentsDir, cwd);
+    const plannerAgent = orc.getAgent(agents, 'planner');
+
+    console.log(`\n  🤖 Invoking planning AI: ${planningModel} via ${planningEngine}...`);
+
+    const result = await orc.runAgent(
+      plannerAgent,
+      promptText,
+      {
+        dryRun:    false,
+        engine:    planningEngine,
+        model:     planningModel,
+        outputDir: path.join(cwd, LOCAL_DIR_NAME, 'sessions'),
+        cwd,
+      }
+    );
+
+    if (result.errors.length > 0) {
+      console.warn(`  ⚠️  Planning LLM returned errors — falling back to static template.`);
+      result.errors.forEach(e => console.warn(`      ${e}`));
+      return null;
+    }
+
+    return result.output || null;
+
+  } catch (err) {
+    console.warn(`  ⚠️  Planning LLM invocation failed: ${err.message}`);
+    console.warn('  Falling back to static template.');
+    return null;
+  }
+}
+
+// ─── Fix 0 + Fix 3: Brainstorming Generator (LLM-Powered + Professional) ──────
+
+/**
+ * Extract scope hints from start.md (backend? mobile? worktrees?)
+ */
+function extractScopeHints(startContent) {
+  const lines = startContent.toLowerCase();
+
+  const needsBackend = (() => {
+    const m = startContent.match(/do you need a backend.*?\n>\s*\*\*Answer:\*\*\s*(.+)/i);
+    if (m) {
+      const ans = m[1].toLowerCase().trim();
+      return !ans.startsWith('no');
+    }
+    // Infer from description
+    return /backend|api|database|server|laravel|django|fastapi|express|spring/i.test(lines);
+  })();
+
+  const needsMobile = (() => {
+    const m = startContent.match(/do you need a mobile.*?\n>\s*\*\*Answer:\*\*\s*(.+)/i);
+    if (m) {
+      const ans = m[1].toLowerCase().trim();
+      return ans.startsWith('yes');
+    }
+    return /mobile|flutter|ios|android|react native|expo/i.test(lines);
+  })();
+
+  return { needsBackend, needsMobile };
+}
+
+async function generateBrainstormingDoc(cwd, userPrompt, scopeHints, config) {
+  const { needsBackend, needsMobile } = scopeHints || {};
+
+  // Build the LLM prompt for brainstorming
+  const llmPrompt = `You are the IMH-Code Planner — an expert software architect and technical product manager.
+
+Your task is to analyze the following project description and generate a comprehensive, professional brainstorming document in Markdown format.
+
+## Project Description
+
+${userPrompt}
+
+## Scope Hints
+- Backend required: ${needsBackend ? 'YES' : 'NO'}
+- Mobile required:  ${needsMobile  ? 'YES' : 'NO'}
+
+## Instructions
+
+Generate 25-35 smart, project-specific brainstorming questions with intelligent recommended answers. The questions must be:
+1. **Tailored to this exact project** — not generic
+2. **Professional and thorough** — cover all aspects a senior engineer would consider
+3. **Formatted exactly** as shown below
+
+### Required Sections (include all that apply based on scope):
+
+1. **General Requirements** — goals, users, scale, timeline, success metrics
+2. **Frontend** (ALWAYS include if web app) — must include:
+   - Framework choice (Next.js / Vue 3+Nuxt / React+Vite / SvelteKit)
+   - UI component library (shadcn/ui / Radix / Chakra / Mantine / custom)
+   - **Color palette style** (Vibrant SaaS / Dark Premium / Minimal Neutral / Pastel Soft / Corporate Blue / Bold Brand)
+   - **Design aesthetic** (Glassmorphism / Neumorphism / Brutalism / Claymorphism / Minimalist Clean / Modern SaaS)
+   - **Typography preference** (Modern sans-serif like Inter / Serif editorial / Mono-accented / System fonts)
+   - **Animation preference** (GSAP ScrollTrigger / Framer Motion / CSS transitions / None)
+   - Dark mode strategy (system/toggle/always dark/light only)
+   - Mobile responsive approach (mobile-first / desktop-first / equal)
+   - **Git worktree snapshots** per sprint? (yes / no — creates .worktrees/ for branch snapshots)
+   - Accessibility level (WCAG AA / basic / none)
+3. **Backend** (only if needsBackend=YES) — framework, database, auth, API style, real-time, payments, file uploads, rate limiting
+4. **Mobile** (only if needsMobile=YES) — platform, framework, offline support, push notifications
+5. **Deployment** — platform, Docker, CI/CD, CDN
+6. **Testing Strategy** — Fast/Balanced/Strict TDD, testing timing
+7. **Security** — audit timing, OWASP, compliance needs
+8. **SEO** (if web) — requirements, timing
+
+### CRITICAL Format — each question MUST follow this exact format:
+
+**Q[N]: [Question text]?**
+> **Recommended:** [Smart, specific recommendation based on the project]
+> **Your Answer:** *(edit if needed)*
+
+### Output
+
+Output ONLY the Markdown content. Start with:
+# 🧠 IMH-Code — Project Brainstorming
+
+Do NOT include any preamble, explanation, or commentary outside the Markdown document.`;
+
+  // Try LLM first (Fix 0)
+  const llmOutput = await invokePlanningLLM(llmPrompt, config, cwd);
+
+  let content;
+  if (llmOutput && llmOutput.trim().length > 200) {
+    // Ensure it starts correctly
+    content = llmOutput.trim();
+    if (!content.startsWith('#')) {
+      content = `# 🧠 IMH-Code — Project Brainstorming\n\n` + content;
+    }
+    content += `\n\n---\n\n*Generated by ${PLATFORM_NAME} planning AI — ${new Date().toLocaleDateString()}*\n`;
+    content += `\n*When ready, run \`imhcode plan\` to generate sprint plans from your answers.*\n`;
+    console.log(`\n  ✅ Brainstorming document generated by planning AI (${config?.model_routing?.planning?.model || 'LLM'})`);
+  } else {
+    // Fix 3: Professional static fallback with design questions
+    content = generateStaticBrainstorming(userPrompt, scopeHints);
+    console.log(`\n  📋 Brainstorming document generated (static template)`);
+  }
+
+  const brainstormPath = path.join(cwd, BRAINSTORM_MD);
+  fs.mkdirSync(path.join(cwd, DOCS_DIR), { recursive: true });
+  fs.writeFileSync(brainstormPath, content, 'utf8');
+}
+
+/**
+ * Fix 3: Professional static brainstorming fallback (used when LLM unavailable)
+ */
+function generateStaticBrainstorming(userPrompt, scopeHints) {
+  const { needsBackend, needsMobile } = scopeHints || {};
   const p = userPrompt.toLowerCase();
 
-  const hasFrontend = p.includes('frontend') || p.includes('ui') || p.includes('dashboard') ||
-                       p.includes('design') || p.includes('page') || p.includes('web') ||
-                       p.includes('next') || p.includes('react') || p.includes('vue');
-  const hasBackend  = p.includes('backend') || p.includes('api') || p.includes('database') ||
-                       p.includes('server') || p.includes('laravel') || p.includes('django') ||
-                       p.includes('fastapi') || p.includes('auth') || p.includes('data');
-  const hasMobile   = p.includes('mobile') || p.includes('flutter') || p.includes('ios') ||
-                       p.includes('android') || p.includes('react native') || p.includes('expo');
+  const hasFrontend = true; // Always assume frontend
+  const defaultFrontend = p.includes('vue') ? 'Vue 3 + Nuxt 4' : p.includes('react') && !p.includes('next') ? 'React + Vite' : 'Next.js 15';
+  const defaultBackend  = p.includes('python') || p.includes('django') ? 'Python / FastAPI' :
+                           p.includes('java') ? 'Java / Spring Boot' : 'Laravel 11';
 
-  // Infer default stack
-  const defaultFrontend = hasFrontend ? (p.includes('vue') ? 'Vue 3 + Nuxt 4' : 'Next.js 15') : 'Next.js 15';
-  const defaultBackend  = hasBackend  ? (p.includes('python') || p.includes('django') ? 'Python/FastAPI' :
-                                          p.includes('java') ? 'Java/Spring Boot' : 'Laravel 11') : 'Laravel 11';
-
-  const content = `# 🧠 IMH-Code — Project Brainstorming
+  return `# 🧠 IMH-Code — Project Brainstorming
 
 > Auto-generated by \`imhcode plan\` on ${new Date().toLocaleDateString()}
 > Review and edit the "**Your Answer**" fields below, then run \`imhcode plan\` again.
@@ -1052,96 +1485,129 @@ async function generateBrainstormingDoc(cwd, userPrompt) {
 > **Recommended:** Small-medium (< 1,000 users initially)
 > **Your Answer:** *(edit if needed)*
 
-**Q4: What is the timeline?**
+**Q4: What is the timeline goal?**
 > **Recommended:** MVP in 2-4 sprints (4-8 weeks)
 > **Your Answer:** *(edit if needed)*
 
+**Q5: What are the key success metrics?**
+> **Recommended:** User signups, feature completion, performance benchmarks
+> **Your Answer:** *(edit if needed)*
+
 ---
-${hasFrontend ? `
+
 ## 🎨 Frontend
 
-**Q5: Which frontend framework?**
+**Q6: Which frontend framework?**
 > **Recommended:** ${defaultFrontend}
 > **Your Answer:** *(edit if needed)*
 
-**Q6: UI Component library?**
+**Q7: UI component library?**
 > **Recommended:** shadcn/ui + Tailwind CSS v4
-> **Your Answer:** *(edit if needed)*
+> **Your Answer:** *(shadcn/ui / Radix / Chakra / Mantine / custom)*
 
-**Q7: Do you need animations/3D effects?**
-> **Recommended:** Light micro-animations (GSAP ScrollTrigger)
-> **Your Answer:** *(yes — specify / no)*
+**Q8: Color palette style?**
+> **Recommended:** Dark Premium (deep backgrounds with vibrant accents)
+> **Your Answer:** *(Vibrant SaaS / Dark Premium / Minimal Neutral / Pastel Soft / Corporate Blue / Bold Brand)*
 
-**Q8: Mobile responsive?**
-> **Recommended:** Yes (mobile-first responsive design)
-> **Your Answer:** *(edit if needed)*
+**Q9: Design aesthetic / style?**
+> **Recommended:** Modern SaaS (glassmorphism elements, clean cards, subtle gradients)
+> **Your Answer:** *(Glassmorphism / Neumorphism / Brutalism / Claymorphism / Minimalist Clean / Modern SaaS)*
 
-**Q9: Dark mode support?**
-> **Recommended:** Yes (dark/light toggle)
+**Q10: Typography preference?**
+> **Recommended:** Modern sans-serif (Inter + Outfit)
+> **Your Answer:** *(Modern sans-serif / Serif editorial / Mono-accented / System fonts)*
+
+**Q11: Animation & interaction style?**
+> **Recommended:** Subtle micro-animations (Framer Motion for components, CSS transitions)
+> **Your Answer:** *(GSAP ScrollTrigger / Framer Motion / CSS transitions / None)*
+
+**Q12: Dark mode strategy?**
+> **Recommended:** System preference + manual toggle
+> **Your Answer:** *(system toggle / always dark / light only)*
+
+**Q13: Mobile responsive approach?**
+> **Recommended:** Mobile-first responsive design
+> **Your Answer:** *(mobile-first / desktop-first / equal)*
+
+**Q14: Git worktree snapshots per sprint?**
+> **Recommended:** Yes (creates .worktrees/ for branch snapshots at each sprint)
 > **Your Answer:** *(yes / no)*
 
-**Q10: Preferred design style?**
-> **Recommended:** Modern SaaS (glassmorphism, clean, premium)
-> **Your Answer:** *(edit if needed)*
-` : ''}
-${hasBackend ? `
+**Q15: Accessibility level?**
+> **Recommended:** WCAG 2.1 AA
+> **Your Answer:** *(WCAG AA / basic / none)*
+
+---
+${needsBackend ? `
 ## 🔧 Backend
 
-**Q11: Which backend framework?**
+**Q16: Which backend framework?**
 > **Recommended:** ${defaultBackend}
 > **Your Answer:** *(edit if needed)*
 
-**Q12: Database?**
+**Q17: Database?**
 > **Recommended:** PostgreSQL + Redis (caching)
 > **Your Answer:** *(edit if needed)*
 
-**Q13: Authentication system?**
+**Q18: Authentication system?**
 > **Recommended:** JWT tokens + email verification
 > **Your Answer:** *(JWT / session / OAuth / other)*
 
-**Q14: API architecture?**
-> **Recommended:** RESTful API
+**Q19: API architecture?**
+> **Recommended:** RESTful API with versioning (/api/v1)
 > **Your Answer:** *(REST / GraphQL / both)*
 
-**Q15: Do you need file uploads?**
+**Q20: File uploads?**
 > **Recommended:** Yes (S3-compatible storage)
 > **Your Answer:** *(yes / no)*
 
-**Q16: Real-time features?**
+**Q21: Real-time features?**
 > **Recommended:** No (for MVP)
 > **Your Answer:** *(yes — specify / no)*
 
-**Q17: Payment integration?**
+**Q22: Payment integration?**
 > **Recommended:** No (for MVP)
 > **Your Answer:** *(yes — specify provider / no)*
+
+**Q23: Rate limiting & API security?**
+> **Recommended:** Yes (throttle 60 req/min per IP, API key auth for external)
+> **Your Answer:** *(yes / no)*
+
+---
 ` : ''}
-${hasMobile ? `
+${needsMobile ? `
 ## 📱 Mobile
 
-**Q18: Target platforms?**
+**Q24: Target platforms?**
 > **Recommended:** iOS + Android (cross-platform)
 > **Your Answer:** *(iOS only / Android only / both)*
 
-**Q19: Mobile framework?**
+**Q25: Mobile framework?**
 > **Recommended:** Flutter
 > **Your Answer:** *(Flutter / React Native / both)*
 
-**Q20: Offline support?**
+**Q26: Offline support?**
 > **Recommended:** No (for MVP)
 > **Your Answer:** *(yes / no)*
+
+**Q27: Push notifications?**
+> **Recommended:** Yes (Firebase Cloud Messaging)
+> **Your Answer:** *(yes / no)*
+
+---
 ` : ''}
 
 ## 🚀 Deployment
 
-**Q21: Deployment platform?**
-> **Recommended:** Vercel (frontend) + DigitalOcean/Railway (backend)
+**Q28: Deployment platform?**
+> **Recommended:** Vercel (frontend) + Railway or DigitalOcean (backend)
 > **Your Answer:** *(edit if needed)*
 
-**Q22: Do you need Docker containerization?**
+**Q29: Docker containerization?**
 > **Recommended:** Yes
 > **Your Answer:** *(yes / no)*
 
-**Q23: CI/CD pipeline?**
+**Q30: CI/CD pipeline?**
 > **Recommended:** GitHub Actions
 > **Your Answer:** *(yes / no)*
 
@@ -1149,18 +1615,12 @@ ${hasMobile ? `
 
 ## 🧪 Testing Strategy
 
-**Q24: How should testing be handled?**
+**Q31: How should testing be handled?**
 
 Options:
-- **[A] Fast Mode (Recommended for MVPs)** — No testing during development sprints.
-  A dedicated final sprint handles all testing, security audit, SEO, and browser testing.
-  3-5x faster for initial development.
-  
+- **[A] Fast Mode (Recommended for MVPs)** — No testing during dev sprints. Final sprint handles all testing, security, SEO, browser testing. 3-5x faster.
 - **[B] Balanced Mode** — Basic smoke tests per sprint. Full test suite at end.
-  ~80% development speed of Fast Mode.
-  
-- **[C] Strict TDD Mode** — Full Red-Green-Refactor on every task.
-  Slowest but highest quality. Only for healthcare, finance, compliance projects.
+- **[C] Strict TDD Mode** — Red-Green-Refactor on every task. Healthcare/finance only.
 
 > **Recommended:** A (Fast Mode)
 > **Your Answer:** A *(change to B or C if needed)*
@@ -1169,15 +1629,15 @@ Options:
 
 ## 🔒 Security
 
-**Q25: Security audit timing?**
+**Q32: Security audit timing?**
 > **Recommended:** Final sprint only (OWASP Top 10 + dependency scan)
 > **Your Answer:** *(final sprint only / every sprint)*
 
 ---
 
-## 🌐 SEO (if web app)
+## 🌐 SEO
 
-**Q26: SEO requirements?**
+**Q33: SEO requirements?**
 > **Recommended:** Technical SEO in final sprint (meta tags, Core Web Vitals, structured data)
 > **Your Answer:** *(final sprint only / every sprint / not needed)*
 
@@ -1193,125 +1653,337 @@ Write any additional requirements, constraints, or preferences here:
 
 *When ready, run \`imhcode plan\` to generate sprint plans from your answers.*
 `;
-
-  const brainstormPath = path.join(cwd, BRAINSTORM_MD);
-  fs.mkdirSync(path.join(cwd, DOCS_DIR), { recursive: true });
-  fs.writeFileSync(brainstormPath, content, 'utf8');
 }
 
-// ─── Sprint Plan Generator ────────────────────────────────────────────────────
+// ─── Fix 0 + Fix 5: Sprint Plan Generator (LLM-Powered + Stack-Aware) ─────────
 
 async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
   // Parse answers from brainstorming
-  const testingMode = extractAnswer(brainstormContent, 'Q24', 'A').trim().toUpperCase();
-  const hasFrontend = brainstormContent.includes('frontend') || brainstormContent.includes('Next.js') || brainstormContent.includes('Vue');
-  const hasBackend  = brainstormContent.includes('Laravel') || brainstormContent.includes('Python') || brainstormContent.includes('Django') || brainstormContent.includes('Java');
+  const testingModeRaw = extractAnswer(brainstormContent, 'Q31', 'A').trim().toUpperCase().charAt(0);
+  const detectedTesting = testingModeRaw === 'B' ? 'balanced' : testingModeRaw === 'C' ? 'strict' : 'fast';
 
-  const detectedTesting = testingMode === 'B' ? 'balanced' : testingMode === 'C' ? 'strict' : 'fast';
+  // Detect scope from brainstorm content
+  const b = brainstormContent.toLowerCase();
+  const hasFrontend  = true; // Always assume frontend
+  const hasBackend   = (() => {
+    // Check Q31-equivalent backend answer or keyword detection
+    const backendAnswer = extractAnswer(brainstormContent, 'Q16', '').trim();
+    if (backendAnswer && backendAnswer !== '*(edit if needed)*') return true;
+    return /laravel|django|fastapi|express|spring\s*boot|node\.js.*api|postgresql|mysql|redis/i.test(brainstormContent);
+  })();
+  const hasMobile    = /flutter|react native|ios.*app|android.*app|expo/i.test(brainstormContent);
+  const needsWorktrees = /worktree.*yes|yes.*worktree/i.test(brainstormContent);
+  const hasPayments  = /stripe|paypal|payment|yes.*payment/i.test(brainstormContent);
+  const hasRealtime  = /websocket|real-time.*yes|yes.*real-time|socket\.io/i.test(brainstormContent);
+  const designStyle  = (() => {
+    const m = brainstormContent.match(/Your Answer:\s*\*(.*?(?:glassmorphism|neumorphism|brutalism|claymorphism|minimalist|modern saas).*?)\*/i);
+    return m ? m[1].trim() : 'Modern SaaS';
+  })();
+  const colorStyle   = (() => {
+    const m = brainstormContent.match(/Your Answer:\s*\*(.*?(?:vibrant|dark premium|minimal neutral|pastel|corporate|bold).*?)\*/i);
+    return m ? m[1].trim() : 'Dark Premium';
+  })();
 
   // Save testing mode to config
   if (config) {
     config.testing_mode = detectedTesting;
     const configPath = path.join(cwd, CONFIG_FILE);
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8'); } catch {}
+  }
+
+  // Fix 5: Create workspace directories lazily based on brainstorm answers
+  if (hasFrontend) {
+    const frontendDir = path.join(cwd, 'frontend');
+    if (!fs.existsSync(frontendDir)) {
+      fs.mkdirSync(frontendDir, { recursive: true });
+      console.log(`  📁 Created frontend/ (scope confirmed in brainstorming)`);
+    }
+  }
+  if (hasBackend) {
+    const backendDir = path.join(cwd, 'backend');
+    if (!fs.existsSync(backendDir)) {
+      fs.mkdirSync(backendDir, { recursive: true });
+      console.log(`  📁 Created backend/ (scope confirmed in brainstorming)`);
+    }
+  }
+  if (needsWorktrees) {
+    const wtDir = path.join(cwd, '.worktrees');
+    if (!fs.existsSync(wtDir)) {
+      fs.mkdirSync(wtDir, { recursive: true });
+      console.log(`  📁 Created .worktrees/ (git worktree snapshots enabled)`);
+    }
   }
 
   // Generate PROJECT_BRIEF.md
-  const briefContent = generateProjectBrief(userPrompt, brainstormContent);
+  const briefContent = generateProjectBrief(userPrompt, brainstormContent, {
+    hasFrontend, hasBackend, hasMobile, designStyle, colorStyle, detectedTesting
+  });
   fs.writeFileSync(path.join(cwd, BRIEF_MD), briefContent, 'utf8');
   console.log(`  ✅ Created PROJECT_BRIEF.md`);
 
-  // Generate Sprint 1 (Foundation)
-  await generateSprint(cwd, 1, 'Foundation & Setup', [
-    { task: 'Initialize project structure and configure environments', agent: 'devops-executor', tier: 'light', deps: [] },
-    { task: 'Set up database schema and migrations', agent: hasBackend ? 'laravel-executor' : 'python-executor', tier: 'standard', deps: [1] },
-    { task: 'Implement authentication system (register, login, logout)', agent: hasBackend ? 'laravel-executor' : 'python-executor', tier: 'complex', deps: [2] },
-    ...(hasFrontend ? [
-      { task: 'Set up frontend project with design system and component library', agent: 'nextjs-executor', tier: 'standard', deps: [1] },
-      { task: 'Build authentication UI pages (login, register, forgot password)', agent: 'nextjs-executor', tier: 'standard', deps: [3, 4] },
-    ] : []),
-  ], detectedTesting);
+  // Try LLM-powered sprint generation first (Fix 0)
+  const llmSprintResult = await tryLLMSprintGeneration(
+    cwd, userPrompt, brainstormContent, config,
+    { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting, needsWorktrees }
+  );
 
-  // Generate Sprint 2 (Core Features)
-  await generateSprint(cwd, 2, 'Core Features', [
-    { task: 'Build main API endpoints for core business logic', agent: hasBackend ? 'laravel-executor' : 'python-executor', tier: 'complex', deps: [] },
-    ...(hasFrontend ? [
-      { task: 'Build dashboard layout with navigation and sidebar', agent: 'nextjs-executor', tier: 'standard', deps: [] },
-      { task: 'Implement main feature pages and components', agent: 'nextjs-executor', tier: 'complex', deps: [2] },
-      { task: 'Connect frontend to backend API with error handling', agent: 'nextjs-executor', tier: 'standard', deps: [1, 3] },
-    ] : []),
-    { task: 'Implement user settings and profile management', agent: hasBackend ? 'laravel-executor' : 'python-executor', tier: 'standard', deps: [1] },
-  ], detectedTesting);
+  let lastSprintNum;
 
-  // Determine last sprint number
-  let lastSprintNum = 2;
+  if (llmSprintResult) {
+    console.log(`  ✅ Sprint plans generated by planning AI`);
+    lastSprintNum = llmSprintResult.sprintCount;
+  } else {
+    // Fix 5: Fallback to smart static generation
+    lastSprintNum = await generateStaticSprintPlans(
+      cwd,
+      { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting },
+      config
+    );
+  }
 
-  // If testing mode is fast/balanced, auto-generate testing sprint
+  // Auto-generate testing sprint if fast/balanced mode
   if (detectedTesting !== 'strict') {
     const testingSprintNum = lastSprintNum + 1;
-    await generateTestingSprint(cwd, testingSprintNum, hasFrontend, hasBackend);
-    console.log(`  ✅ Created auto-generated Testing Sprint ${testingSprintNum}`);
+    await generateTestingSprint(cwd, testingSprintNum, hasFrontend, hasBackend, config);
+    console.log(`  ✅ Created Testing Sprint ${testingSprintNum} (security + SEO + E2E)`);
   }
 
   // Update compact context
-  const contextContent = `# IMH-Code Project Context
-
-Generated: ${new Date().toLocaleDateString()}
-Project: ${userPrompt.slice(0, 100)}...
-Testing Mode: ${detectedTesting}
-Sprints: ${lastSprintNum + (detectedTesting !== 'strict' ? 1 : 0)} total
-
-## Stack
-${hasFrontend ? '- Frontend: Next.js 15 + shadcn/ui + Tailwind CSS v4' : ''}
-${hasBackend ? '- Backend: Laravel 11 + PostgreSQL + Redis' : ''}
-- Auth: JWT tokens
-- Deployment: Docker + GitHub Actions
-
-## Directory Structure
-- frontend/ — All frontend code
-- backend/ — All backend code  
-- docs/ — Sprint plans and documentation
-
-## Current Sprint
-Sprint 1 (not started)
-
-## Key Files
-${hasFrontend ? '- frontend/app/ — Next.js pages' : ''}
-${hasBackend ? '- backend/routes/api.php — API routes' : ''}
-${hasBackend ? '- backend/app/Models/ — Eloquent models' : ''}
-`;
-
+  const contextContent = buildContextContent(userPrompt, {
+    hasFrontend, hasBackend, hasMobile, detectedTesting, lastSprintNum, designStyle, colorStyle
+  });
   fs.mkdirSync(path.join(cwd, LOCAL_DIR_NAME), { recursive: true });
   fs.writeFileSync(path.join(cwd, CONTEXT_MD), contextContent, 'utf8');
-  console.log(`  ✅ Created .imhcode/context.md (compact context)`);
+  console.log(`  ✅ Created .imhcode/context.md`);
 }
 
-async function generateSprint(cwd, sprintNum, title, tasks, testingMode) {
+/**
+ * Attempt LLM-generated sprint plans. Returns { sprintCount } on success, null on failure.
+ */
+async function tryLLMSprintGeneration(cwd, userPrompt, brainstormContent, config, scope) {
+  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting } = scope;
+
+  const agentList = [
+    'planner (planning)', 'designer (frontend)', 'nextjs-executor (frontend)', 'react-executor (frontend)',
+    'vue-executor (frontend)', 'laravel-executor (backend)', 'python-executor (backend)',
+    'java-executor (backend)', 'flutter-executor (backend)', 'react-native-executor (backend)',
+    'ios-executor (backend)', 'android-executor (backend)', 'systems-executor (backend)',
+    'web3-executor (backend)', 'devops-executor (backend)', 'tester (testing)',
+    'security-auditor (testing)', 'seo-optimizer (review)', 'debugger (review)',
+  ].join('\n  ');
+
+  const modelRouting = config?.model_routing || {};
+  const routingContext = Object.entries(modelRouting).map(([cat, r]) =>
+    `  ${cat}: ${r?.model} via ${r?.engine}`
+  ).join('\n');
+
+  const llmPrompt = `You are the IMH-Code Sprint Planner — an expert software architect.
+
+Generate a complete sprint plan for the following project. Output ONLY valid JSON, nothing else.
+
+## Project Description
+${userPrompt}
+
+## Brainstorming Answers
+${brainstormContent}
+
+## Scope
+- Frontend: ${hasFrontend ? 'YES' : 'NO'} (Design style: ${designStyle}, Colors: ${colorStyle})
+- Backend:  ${hasBackend  ? 'YES' : 'NO'}
+- Mobile:   ${hasMobile   ? 'YES' : 'NO'}
+- Payments: ${hasPayments ? 'YES' : 'NO'}
+- Realtime: ${hasRealtime ? 'YES' : 'NO'}
+- Testing:  ${detectedTesting}
+
+## Available Agents
+  ${agentList}
+
+## Model Routing (each agent will use its category model)
+${routingContext}
+
+## Output Format
+
+Return ONLY this JSON structure (no markdown, no explanation):
+
+{
+  "sprints": [
+    {
+      "num": 1,
+      "title": "Foundation & Setup",
+      "tasks": [
+        {
+          "num": 1,
+          "task": "Detailed task description that a senior engineer would understand",
+          "agent": "agent-id",
+          "tier": "light|standard|complex",
+          "deps": []
+        }
+      ]
+    }
+  ]
+}
+
+## Rules
+1. Generate 2-4 sprints based on project complexity (NOT counting the testing sprint)
+2. Sprint 1 = Foundation (project setup, DB schema, auth, design system)
+3. Sprint 2 = Core Features (main functionality)
+4. Sprint 3+ = Additional features, integrations (only if needed)
+5. Task descriptions must be SPECIFIC to this project, not generic
+6. Choose the RIGHT agent for each task:
+   - nextjs-executor/react-executor/vue-executor/designer → frontend tasks
+   - laravel-executor/python-executor/java-executor → backend tasks
+   - devops-executor → infrastructure, Docker, CI/CD
+   - planner → complex planning/architecture tasks
+7. Respect dependencies (dep task numbers that must complete first)
+8. Max 6 tasks per sprint for clean execution
+9. If design style is Glassmorphism/Neumorphism — include a designer task for design tokens in Sprint 1
+10. If payments needed — include payment integration task in a sprint
+11. If realtime needed — include WebSocket/SSE task in a sprint`;
+
+  const llmOutput = await invokePlanningLLM(llmPrompt, config, cwd);
+  if (!llmOutput) return null;
+
+  // Parse JSON from LLM output
+  let parsed;
+  try {
+    // Strip markdown code fences if present
+    const cleaned = llmOutput.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    parsed = JSON.parse(cleaned);
+  } catch (err) {
+    // Try to extract JSON object from the output
+    const jsonMatch = llmOutput.match(/\{[\s\S]*"sprints"[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.warn('  ⚠️  Planning AI returned non-JSON output — falling back to static template');
+      return null;
+    }
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      console.warn('  ⚠️  Could not parse planning AI JSON — falling back to static template');
+      return null;
+    }
+  }
+
+  if (!parsed?.sprints?.length) return null;
+
+  // Generate sprint files from LLM-provided structure
+  for (const sprint of parsed.sprints) {
+    await generateSprint(cwd, sprint.num, sprint.title, sprint.tasks, detectedTesting, config);
+    console.log(`  ✅ Created Sprint ${sprint.num}: ${sprint.title} (${sprint.tasks.length} tasks)`);
+  }
+
+  return { sprintCount: parsed.sprints.length };
+}
+
+/**
+ * Fix 5: Smart static sprint plan generator (fallback when LLM unavailable)
+ * Generates tailored sprints based on detected scope.
+ */
+async function generateStaticSprintPlans(cwd, scope, config) {
+  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting } = scope;
+
+  const frontendAgent = 'nextjs-executor';
+  const backendAgent  = hasBackend ? 'laravel-executor' : 'python-executor';
+
+  const needsDesignSprint = /glassmorphism|neumorphism|brutalism|claymorphism/i.test(designStyle);
+
+  let sprintNum = 1;
+  const sprints = [];
+
+  // Sprint 1: Foundation
+  const sprint1Tasks = [
+    { task: 'Initialize monorepo structure, configure environments (.env, Docker compose, GitHub Actions skeleton)', agent: 'devops-executor', tier: 'light', deps: [] },
+    ...(hasBackend ? [
+      { task: `Design and implement database schema with migrations for core entities. Set up ${/laravel/i.test(backendAgent) ? 'Eloquent models' : 'ORM models'} with relationships, indexes, and seed factories`, agent: backendAgent, tier: 'standard', deps: [1] },
+      { task: 'Implement full authentication system: user registration, login, logout, password reset, email verification, JWT/session management', agent: backendAgent, tier: 'complex', deps: [2] },
+    ] : []),
+    ...(needsDesignSprint ? [
+      { task: `Design system tokens: ${colorStyle} color palette, typography scale, spacing system, ${designStyle} component patterns (glassmorphism/shadows/borders). Generate CSS custom properties and Tailwind config`, agent: 'designer', tier: 'standard', deps: [1] },
+    ] : []),
+    ...(hasFrontend ? [
+      { task: `Set up ${frontendAgent.replace('-executor', '')} project with shadcn/ui, Tailwind CSS v4, ${needsDesignSprint ? designStyle + ' design tokens,' : ''} ESLint, Prettier, and base layout components`, agent: frontendAgent, tier: 'standard', deps: [1] },
+      { task: 'Build authentication UI pages: login, register, forgot password, email verification. Connect to backend auth API with error handling and loading states', agent: frontendAgent, tier: 'standard', deps: hasBackend ? [3, needsDesignSprint ? 4 : 4] : [needsDesignSprint ? 4 : 4] },
+    ] : []),
+  ];
+  sprints.push({ num: sprintNum++, title: 'Foundation & Setup', tasks: sprint1Tasks });
+
+  // Sprint 2: Core Features
+  const sprint2Tasks = [
+    ...(hasBackend ? [
+      { task: 'Build main REST API endpoints for core business logic. Include request validation, error responses, pagination, and comprehensive API documentation', agent: backendAgent, tier: 'complex', deps: [] },
+      { task: 'Implement user profile, settings management, role-based permissions, and admin panel endpoints', agent: backendAgent, tier: 'standard', deps: [1] },
+    ] : []),
+    ...(hasFrontend ? [
+      { task: 'Build main dashboard layout: sidebar navigation, header with user menu, breadcrumbs, responsive grid. Implement route structure and page transitions', agent: frontendAgent, tier: 'standard', deps: [] },
+      { task: 'Implement core feature pages and reusable data components (tables, forms, modals, filters). Connect to backend APIs with optimistic UI updates', agent: frontendAgent, tier: 'complex', deps: [hasBackend ? 3 : 1] },
+      { task: 'Build user settings, profile management, and notification preference pages. Implement theme toggle and responsive mobile navigation', agent: frontendAgent, tier: 'standard', deps: [hasBackend ? 4 : 2] },
+    ] : []),
+  ];
+  sprints.push({ num: sprintNum++, title: 'Core Features', tasks: sprint2Tasks });
+
+  // Sprint 3: Advanced Features (if payments, realtime, or mobile needed)
+  const sprint3Tasks = [];
+  if (hasPayments) {
+    sprint3Tasks.push({ task: 'Integrate Stripe payment processing: subscription plans, checkout flow, webhooks for payment events, billing portal, invoice management', agent: backendAgent, tier: 'complex', deps: [] });
+    if (hasFrontend) {
+      sprint3Tasks.push({ task: 'Build pricing page, checkout UI with Stripe Elements, subscription management dashboard, billing history', agent: frontendAgent, tier: 'complex', deps: [1] });
+    }
+  }
+  if (hasRealtime) {
+    sprint3Tasks.push({ task: 'Implement WebSocket/SSE real-time features: live data updates, presence indicators, notification broadcasting. Set up Redis pub/sub', agent: backendAgent, tier: 'complex', deps: [] });
+    if (hasFrontend) {
+      sprint3Tasks.push({ task: 'Build real-time UI components: live activity feed, online users indicator, real-time notifications toast system', agent: frontendAgent, tier: 'standard', deps: [hasPayments ? 2 : 1] });
+    }
+  }
+  if (hasMobile) {
+    sprint3Tasks.push({ task: 'Build core mobile screens: auth flow, home/dashboard, main feature screens. Set up navigation, state management, and API integration', agent: 'flutter-executor', tier: 'complex', deps: [] });
+    sprint3Tasks.push({ task: 'Implement push notifications, offline support, biometric auth, and app store metadata preparation', agent: 'flutter-executor', tier: 'standard', deps: [sprint3Tasks.length] });
+  }
+  if (sprint3Tasks.length > 0) {
+    sprints.push({ num: sprintNum++, title: 'Advanced Features', tasks: sprint3Tasks });
+  }
+
+  // Generate all sprint files
+  for (const sprint of sprints) {
+    await generateSprint(cwd, sprint.num, sprint.title, sprint.tasks, detectedTesting, config);
+    console.log(`  ✅ Created Sprint ${sprint.num}: ${sprint.title} (${sprint.tasks.length} tasks)`);
+  }
+
+  return sprintNum - 1; // last sprint number
+}
+
+// ─── Fix 0b Part B: Sprint File Generator (injects --engine/--model) ──────────
+
+async function generateSprint(cwd, sprintNum, title, tasks, testingMode, config) {
   const sprintDir = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
   const tasksDir  = path.join(sprintDir, 'tasks');
   fs.mkdirSync(tasksDir, { recursive: true });
 
-  // plan.md
-  const tddNote = testingMode === 'strict' ? '**Testing Mode: Strict TDD** — Write failing tests first.' :
-                   testingMode === 'balanced' ? '**Testing Mode: Balanced** — Basic smoke tests per task.' :
-                   '**Testing Mode: Fast** — No tests during this sprint. Tests handled in final sprint.';
+  const tddNote = testingMode === 'strict'   ? '**Testing Mode: Strict TDD** — Write failing tests first, then implement.' :
+                   testingMode === 'balanced' ? '**Testing Mode: Balanced** — Add basic smoke tests per task.' :
+                   '**Testing Mode: Fast** — No tests during this sprint. Final sprint handles all testing.';
 
+  // plan.md
   let planMd = `# Sprint ${sprintNum}: ${title}
 
 > ${tddNote}
 
 ## Task Table
 
-| # | Task | Agent | Tier | Depends On |
-|---|------|-------|------|-----------|
-${tasks.map((t, i) => `| ${i+1} | ${t.task} | \`${t.agent}\` | ${t.tier} | ${t.deps.length ? t.deps.join(', ') : '—'} |`).join('\n')}
+| # | Task | Agent | Category | Model | Tier | Depends On |
+|---|------|-------|----------|-------|------|-----------|
+${tasks.map((t, i) => {
+  const cat   = getAgentCategory(t.agent);
+  const model = config?.model_routing?.[cat]?.model || t.agent;
+  return `| ${i+1} | ${t.task} | \`${t.agent}\` | ${cat} | ${model} | ${t.tier} | ${t.deps?.length ? t.deps.join(', ') : '—'} |`;
+}).join('\n')}
 
 ## Sprint Goals
 - Complete all ${tasks.length} tasks in dependency order
+- Each task uses its category-optimized AI model
 - Update PROJECT_BRIEF.md after completion
 - Update .imhcode/context.md with what was built
 `;
-
   fs.writeFileSync(path.join(sprintDir, 'plan.md'), planMd, 'utf8');
 
   // progress.md
@@ -1322,47 +1994,55 @@ Start: —
 End: —
 
 ## Task Status
-${tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task}`).join('\n')}
+${tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task} [\`${t.agent}\`]`).join('\n')}
 `;
   fs.writeFileSync(path.join(sprintDir, 'progress.md'), progressMd, 'utf8');
-
-  // deferred.md
   fs.writeFileSync(path.join(sprintDir, 'deferred.md'), `# Sprint ${sprintNum} Deferred Items\n\nNone yet.\n`, 'utf8');
 
-  // Individual task scripts
+  // Fix 0b Part B: Individual task scripts with --engine/--model injected
   for (let i = 0; i < tasks.length; i++) {
-    const t = tasks[i];
+    const t       = tasks[i];
     const taskNum = i + 1;
-    const testingFlag = testingMode === 'strict' ? '# Testing mode: strict — include TDD instructions\nTASK="[STRICT TDD] ${t.task}: Write failing tests first, then implement."' :
-                         testingMode === 'balanced' ? `TASK="[BALANCED] ${t.task}: Add basic smoke tests."` :
-                         `TASK="${t.task}"`;
+    const category = getAgentCategory(t.agent);
+    const routedEngine = config?.model_routing?.[category]?.engine || '';
+    const routedModel  = config?.model_routing?.[category]?.model  || '';
+
+    const engineFlag = routedEngine ? `--engine ${routedEngine}` : '';
+    const modelFlag  = routedModel  ? `--model "${routedModel}"` : '';
+
+    const taskDesc = testingMode === 'strict'   ? `[STRICT TDD] ${t.task}: Write failing tests first, then implement.` :
+                      testingMode === 'balanced' ? `[BALANCED] ${t.task}: Add basic smoke tests.` :
+                      t.task;
 
     const taskScript = `#!/bin/bash
 # IMH-Code — Sprint ${sprintNum} Task ${taskNum}
-# Task: ${t.task}
-# Agent: ${t.agent}
-# Tier: ${t.tier}
+# Task:   ${t.task}
+# Agent:  ${t.agent} (${category})
+# Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}
+# Tier:   ${t.tier}
 CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$CWD/../../../.."
 
-${testingFlag}
+TASK="${taskDesc.replace(/"/g, '\\"')}"
 
 echo "📋 Running Task ${taskNum}: ${t.task}"
-echo "   Agent: ${t.agent} | Tier: ${t.tier}"
+echo "   Agent:  ${t.agent}"
+echo "   Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}"
+echo "   Tier:   ${t.tier}"
 
 if command -v imhcode >/dev/null 2>&1; then
-  imhcode agent run ${t.agent} "$TASK" --live
+  imhcode agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag}
 else
-  node "$(npm root -g)/imhcode/bin/imhcode.js" agent run ${t.agent} "$TASK" --live
+  node "$(npm root -g)/imhcode/bin/imhcode.js" agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag}
 fi
 `;
     fs.writeFileSync(path.join(tasksDir, `task_${taskNum}.sh`), taskScript, { mode: 0o755 });
   }
 
-  // run_all_tasks.sh (respects dependency ordering)
+  // run_all_tasks.sh
   const masterScript = `#!/bin/bash
 # IMH-Code — Sprint ${sprintNum}: ${title}
-# Run all tasks in dependency order
+# Run all tasks in dependency order with correct AI model routing
 set -e
 CWD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TASKS_DIR="$CWD/tasks"
@@ -1374,8 +2054,11 @@ echo ""
 
 ${tasks.map((t, i) => {
   const taskNum = i + 1;
+  const category = getAgentCategory(t.agent);
+  const model = config?.model_routing?.[category]?.model || 'default';
   return `echo "\\n─────────────────────────────────────────────────────────────"
 echo "📋 Task ${taskNum}/${tasks.length}: ${t.task}"
+echo "   Agent: ${t.agent} → ${model}"
 echo "─────────────────────────────────────────────────────────────"
 bash "$TASKS_DIR/task_${taskNum}.sh"`;
 }).join('\n\n')}
@@ -1386,32 +2069,30 @@ echo "   Run: imhcode execute ${sprintNum + 1}"
 echo ""
 `;
   fs.writeFileSync(path.join(sprintDir, 'run_all_tasks.sh'), masterScript, { mode: 0o755 });
-
-  console.log(`  ✅ Created Sprint ${sprintNum}: ${title} (${tasks.length} tasks)`);
 }
 
-async function generateTestingSprint(cwd, sprintNum, hasFrontend, hasBackend) {
+async function generateTestingSprint(cwd, sprintNum, hasFrontend, hasBackend, config) {
   const tasks = [
-    { task: 'Write unit tests for all backend API endpoints', agent: 'tester', tier: 'standard', deps: [] },
-    { task: 'Write integration tests for core API flows', agent: 'tester', tier: 'complex', deps: [1] },
-    ...(hasFrontend ? [
-      { task: 'Write component tests for all frontend pages and components', agent: 'tester', tier: 'standard', deps: [] },
-      { task: 'Run E2E browser tests with Playwright (all critical user flows)', agent: 'tester', tier: 'complex', deps: [3] },
+    ...(hasBackend ? [
+      { task: 'Write comprehensive unit tests for all backend API endpoints, service layer, and utility functions. Target 80%+ coverage', agent: 'tester', tier: 'standard', deps: [] },
+      { task: 'Write integration tests for core API flows: auth, main CRUD operations, edge cases, and error handling', agent: 'tester', tier: 'complex', deps: [1] },
     ] : []),
-    { task: 'Run security audit: OWASP Top 10, dependency vulnerabilities, auth testing', agent: 'security-auditor', tier: 'complex', deps: [] },
+    { task: 'Run full security audit: OWASP Top 10, dependency vulnerability scan (npm audit / composer audit), auth testing, SQL injection, XSS checks', agent: 'security-auditor', tier: 'complex', deps: [] },
     ...(hasFrontend ? [
-      { task: 'Run SEO audit: Core Web Vitals, meta tags, structured data, sitemap', agent: 'seo-optimizer', tier: 'standard', deps: [] },
-      { task: 'Run accessibility audit (WCAG 2.1 AA) and fix critical issues', agent: 'tester', tier: 'standard', deps: [3, 4] },
+      { task: 'Write Playwright E2E tests covering all critical user flows: registration, login, core features, payment flow (if applicable)', agent: 'tester', tier: 'complex', deps: hasBackend ? [2] : [] },
+      { task: 'Run SEO audit: Core Web Vitals (LCP, CLS, INP), meta tags, structured data, sitemap.xml, robots.txt, Open Graph tags', agent: 'seo-optimizer', tier: 'standard', deps: [] },
+      { task: 'Run accessibility audit (WCAG 2.1 AA): screen reader compatibility, keyboard navigation, color contrast, ARIA labels. Fix all critical issues', agent: 'tester', tier: 'standard', deps: [] },
     ] : []),
-    { task: 'Generate final test coverage report and fix failing tests', agent: 'tester', tier: 'standard', deps: [] },
+    { task: 'Generate final test coverage report. Fix any failing tests. Document known issues in PROJECT_REPORT.md', agent: 'tester', tier: 'standard', deps: [] },
   ];
 
-  await generateSprint(cwd, sprintNum, 'Testing, Security & SEO Audit', tasks, 'fast');
+  await generateSprint(cwd, sprintNum, 'Testing, Security & SEO Audit', tasks, 'fast', config);
 }
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
-function generateProjectBrief(userPrompt, brainstormContent) {
+function generateProjectBrief(userPrompt, brainstormContent, scope) {
+  const { hasFrontend, hasBackend, hasMobile, designStyle, colorStyle, detectedTesting } = scope || {};
   return `# PROJECT_BRIEF.md
 
 > **IMH-Code — Imam Hussain Coding Harness Platform**
@@ -1425,8 +2106,19 @@ ${userPrompt}
 ## Status
 
 - **Current Sprint**: Sprint 1
-- **Testing Mode**: Fast (final sprint only)
+- **Testing Mode**: ${detectedTesting || 'fast'} (final sprint only)
 - **Generated**: ${new Date().toLocaleDateString()}
+
+## Design Specification
+
+- **Design Style**: ${designStyle || 'Modern SaaS'}
+- **Color Palette**: ${colorStyle || 'Dark Premium'}
+
+## Scope
+
+- **Frontend**: ${hasFrontend ? '✅ Yes' : '❌ No'}
+- **Backend**:  ${hasBackend  ? '✅ Yes' : '❌ No'}
+- **Mobile**:   ${hasMobile   ? '✅ Yes' : '❌ No'}
 
 ## Key Architecture Decisions
 
@@ -1442,19 +2134,69 @@ ${userPrompt}
 `;
 }
 
+function buildContextContent(userPrompt, scope) {
+  const { hasFrontend, hasBackend, hasMobile, detectedTesting, designStyle, colorStyle } = scope || {};
+  return `# IMH-Code Project Context
+
+Generated: ${new Date().toLocaleDateString()}
+Project: ${userPrompt.slice(0, 150)}...
+Testing Mode: ${detectedTesting}
+Design Style: ${designStyle} / ${colorStyle}
+
+## Stack
+${hasFrontend ? '- Frontend: Next.js 15 + shadcn/ui + Tailwind CSS v4' : ''}
+${hasBackend  ? '- Backend: Laravel 11 + PostgreSQL + Redis' : ''}
+${hasMobile   ? '- Mobile: Flutter' : ''}
+- Auth: JWT tokens
+- Deployment: Docker + GitHub Actions
+
+## Directory Structure
+${hasFrontend ? '- frontend/ — All frontend code' : ''}
+${hasBackend  ? '- backend/  — All backend code' : ''}
+- docs/     — Sprint plans and documentation
+
+## Current Sprint
+Sprint 1 (not started)
+`;
+}
+
 function extractPromptFromStartMd(content) {
   const match = content.match(/<!-- WRITE_PROMPT_HERE -->([\s\S]*?)<!-- END_PROMPT -->/);
   if (match) return match[1].trim();
-  // Fallback: return everything after the first heading
   const lines = content.split('\n').filter(l => !l.startsWith('#') && l.trim().length > 0);
   return lines.join(' ').slice(0, 500);
 }
 
 function extractAnswer(brainstormContent, questionKey, defaultAnswer) {
-  const regex = new RegExp(`\\*\\*${questionKey}.*?\\*\\*Your Answer:\\*\\*([^\\n*]+)`, 's');
+  const regex = new RegExp(`\\*\\*${questionKey}.*?\\*\\*Your Answer:\\*\\*\\s*([^\\n*]+)`, 's');
   const match = brainstormContent.match(regex);
-  if (match) return match[1].trim();
+  if (match) return match[1].replace(/\*\(.*?\)\*/g, '').trim();
   return defaultAnswer;
+}
+
+function getAgentCategory(agentId) {
+  const map = {
+    'planner':               'planning',
+    'designer':              'frontend',
+    'nextjs-executor':       'frontend',
+    'react-executor':        'frontend',
+    'vue-executor':          'frontend',
+    'laravel-executor':      'backend',
+    'python-executor':       'backend',
+    'java-executor':         'backend',
+    'flutter-executor':      'backend',
+    'react-native-executor': 'backend',
+    'ios-executor':          'backend',
+    'android-executor':      'backend',
+    'systems-executor':      'backend',
+    'web3-executor':         'backend',
+    'devops-executor':       'backend',
+    'tester':                'testing',
+    'security-auditor':      'testing',
+    'seo-optimizer':         'review',
+    'debugger':              'review',
+  };
+  return map[agentId] || 'backend';
 }
 
 function detectSprintDocs(cwd) {
@@ -1484,14 +2226,11 @@ function resolveSprintNum(restArgs, cwd) {
     const n = parseInt(numStr, 10);
     if (!isNaN(n)) return n;
   }
-
-  // Try PROJECT_BRIEF.md
   const briefPath = path.join(cwd, BRIEF_MD);
   if (fs.existsSync(briefPath)) {
     const m = fs.readFileSync(briefPath, 'utf8').match(/Current Sprint:\s*Sprint\s*(\d+)/i);
     if (m) return parseInt(m[1], 10);
   }
-
   return detectCurrentSprint(cwd);
 }
 
@@ -1503,13 +2242,19 @@ function loadLocalConfig(cwd) {
   return null;
 }
 
+function safeRead(filePath) {
+  try { return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : null; } catch { return null; }
+}
+
 async function updateCompactContext(cwd, completedSprint) {
   const contextPath = path.join(cwd, CONTEXT_MD);
   if (!fs.existsSync(contextPath)) return;
-
   try {
     let content = fs.readFileSync(contextPath, 'utf8');
-    content = content.replace(/Current Sprint\nSprint \d+ \(not started\)/, `Current Sprint\nSprint ${completedSprint + 1}`);
+    content = content.replace(
+      /Current Sprint\nSprint \d+ \(not started\)/,
+      `Current Sprint\nSprint ${completedSprint + 1}`
+    );
     fs.writeFileSync(contextPath, content, 'utf8');
   } catch { /* non-critical */ }
 }
@@ -1523,12 +2268,12 @@ function askQuestion(query) {
 
 function scanAssistantCLIs() {
   const engines = {
-    claude:   { name: 'Claude Code',           path: resolveBinary('claude',   ['~/.local/bin/claude',  '/usr/local/bin/claude',  '/opt/homebrew/bin/claude']),   models: [], modelsCmd: b => `"${b}" --list-models 2>/dev/null || echo ''` },
-    opencode: { name: 'OpenCode',               path: resolveBinary('opencode', ['~/.opencode/bin/opencode', '/usr/local/bin/opencode']),                           models: [], modelsCmd: b => `"${b}" models 2>/dev/null` },
-    codex:    { name: 'Codex (OpenAI)',         path: resolveBinary('codex',    ['~/Library/PhpWebStudy/env/node/bin/codex', '/usr/local/bin/codex']),              models: [], modelsCmd: b => `"${b}" debug models 2>/dev/null` },
-    agy:      { name: 'Antigravity CLI (agy)',  path: resolveBinary('agy',      ['~/.local/bin/agy', '/usr/local/bin/agy', '/opt/homebrew/bin/agy']),               models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
-    qwen:     { name: 'QwenCode (qwen)',        path: resolveBinary('qwen',     ['~/.local/bin/qwen', '/usr/local/bin/qwen', '/opt/homebrew/bin/qwen']),            models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
-    mimo:     { name: 'MimoCode (mimo)',        path: resolveBinary('mimo',     ['~/.local/bin/mimo', '/usr/local/bin/mimo', '/opt/homebrew/bin/mimo', '~/.mimo/bin/mimo']), models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
+    claude:   { name: 'Claude Code',          path: resolveBinary('claude',   ['~/.local/bin/claude',  '/usr/local/bin/claude',  '/opt/homebrew/bin/claude']),   models: [], modelsCmd: b => `"${b}" --list-models 2>/dev/null || echo ''` },
+    opencode: { name: 'OpenCode',              path: resolveBinary('opencode', ['~/.opencode/bin/opencode', '/usr/local/bin/opencode']),                           models: [], modelsCmd: b => `"${b}" models 2>/dev/null` },
+    codex:    { name: 'Codex (OpenAI)',        path: resolveBinary('codex',    ['~/Library/PhpWebStudy/env/node/bin/codex', '/usr/local/bin/codex']),              models: [], modelsCmd: b => `"${b}" debug models 2>/dev/null` },
+    agy:      { name: 'Antigravity CLI (agy)', path: resolveBinary('agy',      ['~/.local/bin/agy', '/usr/local/bin/agy', '/opt/homebrew/bin/agy']),               models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
+    qwen:     { name: 'QwenCode (qwen)',       path: resolveBinary('qwen',     ['~/.local/bin/qwen', '/usr/local/bin/qwen', '/opt/homebrew/bin/qwen']),            models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
+    mimo:     { name: 'MimoCode (mimo)',       path: resolveBinary('mimo',     ['~/.local/bin/mimo', '/usr/local/bin/mimo', '/opt/homebrew/bin/mimo', '~/.mimo/bin/mimo']), models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
   };
 
   for (const [key, eng] of Object.entries(engines)) {
@@ -1593,7 +2338,7 @@ function registerCliGlobally(imhcodeScriptPath) {
   } else {
     const localBinDir = path.join(os.homedir(), '.local', 'bin');
     const imhBinDir   = path.join(GLOBAL_DIR, 'bin');
-    [localBinDir, imhBinDir].forEach(dir => { if (!fs.existsSync(dir)) { try { fs.mkdirSync(dir, { recursive: true }); } catch { } } });
+    [localBinDir, imhBinDir].forEach(dir => { if (!fs.existsSync(dir)) { try { fs.mkdirSync(dir, { recursive: true }); } catch {} } });
 
     const shimContent = `#!/bin/sh\nexec node "${imhcodeScriptPath}" "$@"\n`;
     [path.join(localBinDir, 'imhcode'), path.join(imhBinDir, 'imhcode')].forEach(t => {
