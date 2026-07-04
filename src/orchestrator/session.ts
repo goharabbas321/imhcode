@@ -44,7 +44,7 @@ export function resolveSessionDir(
     return path.resolve(customOutputDir, dirName);
   }
 
-  return path.join(cwd, "sessions", dirName);
+  return path.join(cwd, ".imhcode", "sessions", dirName);
 }
 
 // ─── Session Writer ───────────────────────────────────────────────────────────

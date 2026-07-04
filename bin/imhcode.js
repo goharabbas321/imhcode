@@ -813,7 +813,7 @@ async function cmdSprintDesign(restArgs) {
     { file: path.join(cwd, BRIEF_MD),                   label: 'PROJECT_BRIEF.md' },
     { file: path.join(sprintDir, 'plan.md'),             label: `docs/sprint-${sprintNum}/plan.md` },
     { file: path.join(sprintDir, 'progress.md'),         label: `docs/sprint-${sprintNum}/progress.md` },
-    { file: path.join(sprintDir, 'tasks'),               label: `docs/sprint-${sprintNum}/tasks/` },
+    { file: path.join(cwd, LOCAL_DIR_NAME, 'commands', `sprint-${sprintNum}`), label: `.imhcode/commands/sprint-${sprintNum}/` },
     { file: path.join(sprintDir, 'run_all_tasks.sh'),    label: `docs/sprint-${sprintNum}/run_all_tasks.sh` },
   ];
 
@@ -1971,7 +1971,7 @@ async function generateStaticSprintPlans(cwd, scope, config) {
 
 async function generateSprint(cwd, sprintNum, title, tasks, testingMode, config) {
   const sprintDir = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`);
-  const tasksDir  = path.join(sprintDir, 'tasks');
+  const tasksDir  = path.join(cwd, LOCAL_DIR_NAME, 'commands', `sprint-${sprintNum}`);
   fs.mkdirSync(tasksDir, { recursive: true });
 
   const tddNote = testingMode === 'strict'   ? '**Testing Mode: Strict TDD** — Write failing tests first, then implement.' :
@@ -2039,7 +2039,7 @@ CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 cd "$CWD/../../.."
 
 # Check if task is already completed
-PROGRESS_FILE="$CWD/../progress.md"
+PROGRESS_FILE="$CWD/../../../docs/sprint-${sprintNum}/progress.md"
 if [ -f "$PROGRESS_FILE" ]; then
   if grep -q -e "- \\[[xX]\\] Task ${taskNum}:" "$PROGRESS_FILE"; then
     echo "✅ Task ${taskNum} is already completed. Skipping."
@@ -2069,7 +2069,7 @@ fi
 # Run all tasks in dependency order with correct AI model routing
 set -e
 CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-TASKS_DIR="$CWD/tasks"
+TASKS_DIR="$CWD/../../.imhcode/commands/sprint-${sprintNum}"
 
 echo ""
 echo "🕌 IMH-Code — Executing Sprint ${sprintNum}: ${title}"
