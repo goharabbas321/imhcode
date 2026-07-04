@@ -1662,27 +1662,39 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
   const testingModeRaw = extractAnswer(brainstormContent, 'Q31', 'A').trim().toUpperCase().charAt(0);
   const detectedTesting = testingModeRaw === 'B' ? 'balanced' : testingModeRaw === 'C' ? 'strict' : 'fast';
 
-  // Detect scope from brainstorm content
-  const b = brainstormContent.toLowerCase();
-  const hasFrontend  = true; // Always assume frontend
-  const hasBackend   = (() => {
-    // Check Q31-equivalent backend answer or keyword detection
-    const backendAnswer = extractAnswer(brainstormContent, 'Q16', '').trim();
-    if (backendAnswer && backendAnswer !== '*(edit if needed)*') return true;
-    return /laravel|django|fastapi|express|spring\s*boot|node\.js.*api|postgresql|mysql|redis/i.test(brainstormContent);
+  const ansQ8  = extractAnswer(brainstormContent, 'Q8', 'Dark Premium').trim();
+  const ansQ9  = extractAnswer(brainstormContent, 'Q9', 'Modern SaaS').trim();
+  const ansQ12 = extractAnswer(brainstormContent, 'Q12', 'system toggle').toLowerCase();
+  const ansQ14 = extractAnswer(brainstormContent, 'Q14', 'no').toLowerCase();
+  const ansQ16 = extractAnswer(brainstormContent, 'Q16', 'no').toLowerCase();
+  const ansQ21 = extractAnswer(brainstormContent, 'Q21', 'no').toLowerCase();
+  const ansQ22 = extractAnswer(brainstormContent, 'Q22', 'no').toLowerCase();
+  const ansQ25 = extractAnswer(brainstormContent, 'Q25', 'no').toLowerCase();
+
+  const hasFrontend = true; // Always assume frontend
+
+  // Robust scope detection: only true if user answer is not "no", "none", or standard default fallback placeholder
+  const hasBackend = (() => {
+    if (ansQ16.includes('no') || ansQ16.includes('none') || ansQ16.includes('edit if needed') || ansQ16.trim() === '') {
+      return false;
+    }
+    return true;
   })();
-  const hasMobile    = /flutter|react native|ios.*app|android.*app|expo/i.test(brainstormContent);
-  const needsWorktrees = /worktree.*yes|yes.*worktree/i.test(brainstormContent);
-  const hasPayments  = /stripe|paypal|payment|yes.*payment/i.test(brainstormContent);
-  const hasRealtime  = /websocket|real-time.*yes|yes.*real-time|socket\.io/i.test(brainstormContent);
-  const designStyle  = (() => {
-    const m = brainstormContent.match(/Your Answer:\s*\*(.*?(?:glassmorphism|neumorphism|brutalism|claymorphism|minimalist|modern saas).*?)\*/i);
-    return m ? m[1].trim() : 'Modern SaaS';
+
+  const hasMobile = (() => {
+    if (ansQ25.includes('no') || ansQ25.includes('none') || ansQ25.includes('edit if needed') || ansQ25.trim() === '') {
+      return false;
+    }
+    return true;
   })();
-  const colorStyle   = (() => {
-    const m = brainstormContent.match(/Your Answer:\s*\*(.*?(?:vibrant|dark premium|minimal neutral|pastel|corporate|bold).*?)\*/i);
-    return m ? m[1].trim() : 'Dark Premium';
-  })();
+
+  const needsWorktrees = ansQ14.includes('yes') || ansQ14.includes('true');
+  const hasPayments    = !ansQ22.includes('no') && !ansQ22.includes('none') && !ansQ22.includes('edit if needed') && ansQ22.trim().length > 0;
+  const hasRealtime    = !ansQ21.includes('no') && !ansQ21.includes('none') && !ansQ21.includes('edit if needed') && ansQ21.trim().length > 0;
+
+  const designStyle = ansQ9.replace(/\*\(.*?\)\*/g, '').trim() || 'Modern SaaS';
+  const colorStyle  = ansQ8.replace(/\*\(.*?\)\*/g, '').trim() || 'Dark Premium';
+  const darkmode    = ansQ12.replace(/\*\(.*?\)\*/g, '').trim() || 'system toggle';
 
   // Save testing mode to config
   if (config) {
@@ -1691,21 +1703,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
     try { fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8'); } catch {}
   }
 
-  // Fix 5: Create workspace directories lazily based on brainstorm answers
-  if (hasFrontend) {
-    const frontendDir = path.join(cwd, 'frontend');
-    if (!fs.existsSync(frontendDir)) {
-      fs.mkdirSync(frontendDir, { recursive: true });
-      console.log(`  📁 Created frontend/ (scope confirmed in brainstorming)`);
-    }
-  }
-  if (hasBackend) {
-    const backendDir = path.join(cwd, 'backend');
-    if (!fs.existsSync(backendDir)) {
-      fs.mkdirSync(backendDir, { recursive: true });
-      console.log(`  📁 Created backend/ (scope confirmed in brainstorming)`);
-    }
-  }
+  // Create workspace directories lazily (only worktrees since it's a layout helper, NOT frontend/backend which must remain empty for official CLI scaffolding)
   if (needsWorktrees) {
     const wtDir = path.join(cwd, '.worktrees');
     if (!fs.existsSync(wtDir)) {
@@ -1716,7 +1714,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
 
   // Generate PROJECT_BRIEF.md
   const briefContent = generateProjectBrief(userPrompt, brainstormContent, {
-    hasFrontend, hasBackend, hasMobile, designStyle, colorStyle, detectedTesting
+    hasFrontend, hasBackend, hasMobile, designStyle, colorStyle, darkmode, detectedTesting
   });
   fs.writeFileSync(path.join(cwd, BRIEF_MD), briefContent, 'utf8');
   console.log(`  ✅ Created PROJECT_BRIEF.md`);
@@ -1724,7 +1722,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
   // Try LLM-powered sprint generation first (Fix 0)
   const llmSprintResult = await tryLLMSprintGeneration(
     cwd, userPrompt, brainstormContent, config,
-    { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting, needsWorktrees }
+    { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting, needsWorktrees }
   );
 
   let lastSprintNum;
@@ -1736,7 +1734,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
     // Fix 5: Fallback to smart static generation
     lastSprintNum = await generateStaticSprintPlans(
       cwd,
-      { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting },
+      { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting },
       config
     );
   }
@@ -1750,7 +1748,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
 
   // Update compact context
   const contextContent = buildContextContent(userPrompt, {
-    hasFrontend, hasBackend, hasMobile, detectedTesting, lastSprintNum, designStyle, colorStyle
+    hasFrontend, hasBackend, hasMobile, detectedTesting, lastSprintNum, designStyle, colorStyle, darkmode
   });
   fs.mkdirSync(path.join(cwd, LOCAL_DIR_NAME), { recursive: true });
   fs.writeFileSync(path.join(cwd, CONTEXT_MD), contextContent, 'utf8');
@@ -1761,7 +1759,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
  * Attempt LLM-generated sprint plans. Returns { sprintCount } on success, null on failure.
  */
 async function tryLLMSprintGeneration(cwd, userPrompt, brainstormContent, config, scope) {
-  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, detectedTesting } = scope;
+  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting } = scope;
 
   const agentList = [
     'planner (planning)', 'designer (frontend)', 'nextjs-executor (frontend)', 'react-executor (frontend)',
@@ -1788,7 +1786,7 @@ ${userPrompt}
 ${brainstormContent}
 
 ## Scope
-- Frontend: ${hasFrontend ? 'YES' : 'NO'} (Design style: ${designStyle}, Colors: ${colorStyle})
+- Frontend: ${hasFrontend ? 'YES' : 'NO'} (Design style: ${designStyle}, Colors: ${colorStyle}, Dark Mode Strategy: ${darkmode})
 - Backend:  ${hasBackend  ? 'YES' : 'NO'}
 - Mobile:   ${hasMobile   ? 'YES' : 'NO'}
 - Payments: ${hasPayments ? 'YES' : 'NO'}
@@ -1838,7 +1836,8 @@ Return ONLY this JSON structure (no markdown, no explanation):
 8. Max 6 tasks per sprint for clean execution
 9. If design style is Glassmorphism/Neumorphism — include a designer task for design tokens in Sprint 1
 10. If payments needed — include payment integration task in a sprint
-11. If realtime needed — include WebSocket/SSE task in a sprint`;
+11. If realtime needed — include WebSocket/SSE task in a sprint
+12. Under Frontend, STRICTLY respect the Dark Mode Strategy: if strategy is "light only", do NOT generate any dark mode setups, variables, toggles or dark styles. If strategy is "always dark", design the UI strictly for dark backgrounds.`;
 
   const llmOutput = await invokePlanningLLM(llmPrompt, config, cwd);
   if (!llmOutput) return null;
@@ -2021,7 +2020,7 @@ ${tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task} [\`${t.agent}\`]`).join('\n'
 # Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}
 # Tier:   ${t.tier}
 CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-cd "$CWD/../../../.."
+cd "$CWD/../../.."
 
 TASK="${taskDesc.replace(/"/g, '\\"')}"
 
