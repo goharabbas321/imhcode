@@ -296,6 +296,7 @@ async function runExecuteCommand(restArgs) {
 
   console.log(`─`.repeat(60));
   try {
+    await markSprintStarted(cwd, sprintNum);
     execSync(`sh "${masterScript}"`, { stdio: 'inherit', cwd });
     console.log(`─`.repeat(60));
     console.log(`\n🏁 Sprint ${sprintNum} execution complete!\n`);
@@ -704,6 +705,11 @@ async function cmdRun(orc, args) {
   const outputIdx    = restArgs.indexOf('--output');
   const outputDir    = outputIdx >= 0 ? restArgs[outputIdx + 1] : undefined;
 
+  const sprintIdx    = restArgs.indexOf('--sprint');
+  const sprintVal    = sprintIdx >= 0 ? parseInt(restArgs[sprintIdx + 1], 10) : undefined;
+  const taskIdx      = restArgs.indexOf('--task');
+  const taskVal      = taskIdx >= 0 ? parseInt(restArgs[taskIdx + 1], 10) : undefined;
+
   const agentsDir = resolveAgentsDir();
   const cwd       = process.cwd();
   const config    = loadLocalConfig(cwd);
@@ -736,12 +742,22 @@ async function cmdRun(orc, args) {
 
   const agent  = orc.getAgent(agents, agentId);
 
+  if (live && sprintVal !== undefined) {
+    await markSprintStarted(cwd, sprintVal);
+  }
+
   // Pass the routed engine + model to runAgent (Fix 0b Part A)
   const result = await orc.runAgent(
     agent, task,
     { dryRun: !live, engine: routedEngine, model: routedModel, outputDir, cwd },
     criteria
   );
+
+  if (!result.dryRun && result.errors.length === 0) {
+    if (sprintVal !== undefined && taskVal !== undefined) {
+      await markTaskCompleted(cwd, sprintVal, taskVal);
+    }
+  }
 
   console.log('\n' + '─'.repeat(72));
   if (result.errors.length > 0 && !result.dryRun) {
@@ -2022,6 +2038,15 @@ ${tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task} [\`${t.agent}\`]`).join('\n'
 CWD="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 cd "$CWD/../../.."
 
+# Check if task is already completed
+PROGRESS_FILE="$CWD/../progress.md"
+if [ -f "$PROGRESS_FILE" ]; then
+  if grep -q -e "- \\[[xX]\\] Task ${taskNum}:" "$PROGRESS_FILE"; then
+    echo "✅ Task ${taskNum} is already completed. Skipping."
+    exit 0
+  fi
+fi
+
 TASK="${taskDesc.replace(/"/g, '\\"')}"
 
 echo "📋 Running Task ${taskNum}: ${t.task}"
@@ -2030,9 +2055,9 @@ echo "   Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}"
 echo "   Tier:   ${t.tier}"
 
 if command -v imhcode >/dev/null 2>&1; then
-  imhcode agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag}
+  imhcode agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag} --sprint ${sprintNum} --task ${taskNum}
 else
-  node "$(npm root -g)/imhcode/bin/imhcode.js" agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag}
+  node "$(npm root -g)/imhcode/bin/imhcode.js" agent run ${t.agent} "$TASK" --live ${engineFlag} ${modelFlag} --sprint ${sprintNum} --task ${taskNum}
 fi
 `;
     fs.writeFileSync(path.join(tasksDir, `task_${taskNum}.sh`), taskScript, { mode: 0o755 });
@@ -2250,12 +2275,180 @@ async function updateCompactContext(cwd, completedSprint) {
   if (!fs.existsSync(contextPath)) return;
   try {
     let content = fs.readFileSync(contextPath, 'utf8');
-    content = content.replace(
-      /Current Sprint\nSprint \d+ \(not started\)/,
-      `Current Sprint\nSprint ${completedSprint + 1}`
-    );
+    const pattern = /(## Current Sprint\r?\nSprint )\d+\s*(\([^)]*\))?/i;
+    if (pattern.test(content)) {
+      content = content.replace(pattern, `$1${completedSprint + 1} (not started)`);
+    } else {
+      content = content.replace(
+        /Current Sprint\r?\nSprint \d+ \(not started\)/,
+        `Current Sprint\nSprint ${completedSprint + 1} (not started)`
+      );
+    }
     fs.writeFileSync(contextPath, content, 'utf8');
+
+    // Update PROJECT_BRIEF.md Current Sprint
+    const briefPath = path.join(cwd, BRIEF_MD);
+    if (fs.existsSync(briefPath)) {
+      try {
+        let briefContent = fs.readFileSync(briefPath, 'utf8');
+        const currentSprintPattern = /(Current Sprint:\s*Sprint\s*)\d+/i;
+        if (currentSprintPattern.test(briefContent)) {
+          briefContent = briefContent.replace(currentSprintPattern, `$1${completedSprint + 1}`);
+          fs.writeFileSync(briefPath, briefContent, 'utf8');
+        }
+      } catch {}
+    }
   } catch { /* non-critical */ }
+}
+
+async function markSprintStarted(cwd, sprintNum) {
+  const progressPath = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`, 'progress.md');
+  const briefPath = path.join(cwd, BRIEF_MD);
+
+  // 1. Update progress.md
+  if (fs.existsSync(progressPath)) {
+    try {
+      let progressContent = fs.readFileSync(progressPath, 'utf8');
+      if (progressContent.includes('Status: 🟡 Not Started')) {
+        progressContent = progressContent.replace('Status: 🟡 Not Started', 'Status: 🟢 In Progress');
+        const dateStr = new Date().toLocaleString();
+        progressContent = progressContent.replace('Start: —', `Start: ${dateStr}`);
+        fs.writeFileSync(progressPath, progressContent, 'utf8');
+        console.log(`  🔄 Updated sprint progress to: 🟢 In Progress`);
+      }
+    } catch (err) {
+      console.warn(`  ⚠️ Could not update sprint progress.md: ${err.message}`);
+    }
+  }
+
+  // 2. Update PROJECT_BRIEF.md status
+  if (fs.existsSync(briefPath)) {
+    try {
+      let briefContent = fs.readFileSync(briefPath, 'utf8');
+      const rowPattern = new RegExp(`^\\|\\s*${sprintNum}\\s*\\|([^|]+)\\|([^|]+)\\|`, 'm');
+      const match = briefContent.match(rowPattern);
+      if (match) {
+        const currentStatus = match[2].trim();
+        if (currentStatus.includes('Not Started') || currentStatus.includes('Pending')) {
+          briefContent = updateSprintLogTable(briefContent, sprintNum, '🟢 In Progress');
+          
+          // Also check if Current Sprint needs updating
+          const currentSprintPattern = /(Current Sprint:\s*Sprint\s*)\d+/i;
+          if (currentSprintPattern.test(briefContent)) {
+            briefContent = briefContent.replace(currentSprintPattern, `$1${sprintNum}`);
+          }
+          
+          fs.writeFileSync(briefPath, briefContent, 'utf8');
+          console.log(`  🔄 Updated PROJECT_BRIEF.md sprint ${sprintNum} status to: 🟢 In Progress`);
+        }
+      }
+    } catch (err) {
+      console.warn(`  ⚠️ Could not update PROJECT_BRIEF.md: ${err.message}`);
+    }
+  }
+
+  // 3. Update context.md status
+  await updateContextSprintStatus(cwd, sprintNum, 'in progress');
+}
+
+async function markTaskCompleted(cwd, sprintNum, taskNum) {
+  const progressPath = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`, 'progress.md');
+  const briefPath = path.join(cwd, BRIEF_MD);
+
+  if (!fs.existsSync(progressPath)) return;
+
+  try {
+    let progressContent = fs.readFileSync(progressPath, 'utf8');
+    const lines = progressContent.split('\n');
+    let taskLineIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const taskPattern = new RegExp(`^-\\s*\\[\\s*\\]\\s*Task\\s*${taskNum}\\b`, 'i');
+      if (taskPattern.test(lines[i])) {
+        taskLineIndex = i;
+        lines[i] = lines[i].replace(/-\s*\[\s*\]/, '- [x]');
+        break;
+      }
+    }
+
+    if (taskLineIndex === -1) {
+      console.warn(`  ⚠️ Could not find Task ${taskNum} checkbox in progress.md`);
+      return;
+    }
+
+    progressContent = lines.join('\n');
+    console.log(`  ✅ Marked Task ${taskNum} as completed in progress.md`);
+
+    const incompleteTasksCount = (progressContent.match(/^-\s*\[\s*\]\s*Task\b/gim) || []).length;
+    
+    if (incompleteTasksCount === 0) {
+      progressContent = progressContent.replace(/Status:\s*🟢\s*In\s*Progress/i, 'Status: ✅ Complete');
+      progressContent = progressContent.replace(/Status:\s*🟡\s*Not\s*Started/i, 'Status: ✅ Complete');
+      
+      const dateStr = new Date().toLocaleString();
+      progressContent = progressContent.replace('End: —', `End: ${dateStr}`);
+      
+      console.log(`  🏁 All tasks in Sprint ${sprintNum} completed! Sprint is now ✅ Complete.`);
+
+      if (fs.existsSync(briefPath)) {
+        try {
+          let briefContent = fs.readFileSync(briefPath, 'utf8');
+          briefContent = updateSprintLogTable(briefContent, sprintNum, '✅ Complete');
+          fs.writeFileSync(briefPath, briefContent, 'utf8');
+          console.log(`  🔄 Updated PROJECT_BRIEF.md sprint ${sprintNum} status to: ✅ Complete`);
+        } catch (err) {
+          console.warn(`  ⚠️ Could not update PROJECT_BRIEF.md: ${err.message}`);
+        }
+      }
+    }
+    
+    fs.writeFileSync(progressPath, progressContent, 'utf8');
+  } catch (err) {
+    console.warn(`  ⚠️ Could not update task progress: ${err.message}`);
+  }
+}
+
+function updateSprintLogTable(content, sprintNum, newStatus) {
+  const lines = content.split('\n');
+  let inSprintLog = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith('## Sprint Log')) {
+      inSprintLog = true;
+      continue;
+    }
+    if (inSprintLog && line.startsWith('#')) {
+      inSprintLog = false;
+    }
+    if (inSprintLog) {
+      const match = line.match(new RegExp(`^\\|\\s*${sprintNum}\\s*\\|([^|]+)\\|([^|]+)\\|`));
+      if (match) {
+        const title = match[1].trim();
+        lines[i] = `| ${sprintNum} | ${title} | ${newStatus} |`;
+        break;
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
+async function updateContextSprintStatus(cwd, sprintNum, status) {
+  const contextPath = path.join(cwd, CONTEXT_MD);
+  if (!fs.existsSync(contextPath)) return;
+  try {
+    let content = fs.readFileSync(contextPath, 'utf8');
+    const pattern = /(## Current Sprint\r?\nSprint \d+)\s*\([^)]*\)/i;
+    if (pattern.test(content)) {
+      content = content.replace(pattern, `$1 (${status})`);
+    } else {
+      const simplePattern = /(## Current Sprint\r?\nSprint \d+)/i;
+      if (simplePattern.test(content)) {
+        content = content.replace(simplePattern, `$1 (${status})`);
+      }
+    }
+    fs.writeFileSync(contextPath, content, 'utf8');
+  } catch (err) {
+    // non-critical
+  }
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
