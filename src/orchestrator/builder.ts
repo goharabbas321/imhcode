@@ -169,17 +169,17 @@ export function buildPrompt(
     parts.push(section(`Project Memory (${memoryFiles.length} files)`, memoryBlock));
   }
 
-  // ── 4b. Assets & Branding Instructions ────────────────────────────────────
-  if (cwd && category === "frontend") {
-    parts.push(
-      section(
-        "Assets & Branding Integration",
-        `IMPORTANT: Check the \`.imhcode/assets/\` directory at the project root for any uploaded assets (e.g. logos, brand assets, images, text files, or raw content). ` +
-        `If any such assets exist, you MUST:\n` +
-        `1. Copy or integrate them into the frontend (e.g., \`frontend/public/\` or \`frontend/src/assets/\`).\n` +
-        `2. Use their exact content, names, and images in the user interface (instead of placeholders or generic text).`
-      )
+  // ── 4b. Assets & Shared References Integration ────────────────────────────
+  if (cwd) {
+    const partsList: string[] = [];
+    partsList.push(
+      `IMPORTANT: Always inspect the \`.imhcode/assets/\` directory at the project root for any shared reference code, designs, or assets.`,
+      `- **Logo & Branding Assets**: Look for logos (e.g. \`logo.svg\`, images) or styling files. You MUST copy/integrate them into the frontend (e.g. \`frontend/public/\` or \`frontend/src/assets/\`) and use them directly.`,
+      `- **Shared Frontend/Theme References**: If a \`.imhcode/assets/frontend/\` or \`theme/\` folder exists, review the components, styling sheets, layouts, and pages inside it. Take exact design/coding patterns, or directly reuse the components in your new frontend implementation to match the requested look and feel.`,
+      `- **Shared Backend References**: If a \`.imhcode/assets/backend/\` folder exists, review the database schemas, API routes, models, and business logic. Replicate the architecture, reuse logic patterns, and align your new backend code structure with this reference implementation.`,
+      `- **Always Use Latest Stable Stacks**: When setting up the project structure, compile and install the LATEST stable versions of libraries/frameworks. If initializing the codebase, run official command-line initializers (e.g. \`npx create-next-app@latest ./ --ts --tailwind --eslint --app --src-dir --import-alias "@/*"\` or \`composer create-project laravel/laravel .\`) directly within the target directory (\`frontend/\` or \`backend/\`) to bootstrap proper settings, then organize into a clean architecture. Do NOT hardcode deprecated versions or patterns.`
     );
+    parts.push(section("Assets & Shared References Integration Guidelines", partsList.join("\n")));
   }
 
   // ── 5. Task ───────────────────────────────────────────────────────────────

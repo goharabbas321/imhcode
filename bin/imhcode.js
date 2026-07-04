@@ -1747,9 +1747,10 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
   console.log(`  ✅ Created PROJECT_BRIEF.md`);
 
   // Try LLM-powered sprint generation first (Fix 0)
+  const assetsSummary = getAssetsSummary(cwd);
   const llmSprintResult = await tryLLMSprintGeneration(
     cwd, userPrompt, brainstormContent, config,
-    { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting, needsWorktrees }
+    { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting, needsWorktrees, assetsSummary }
   );
 
   let lastSprintNum;
@@ -1786,7 +1787,7 @@ async function generateSprintPlans(cwd, userPrompt, brainstormContent, config) {
  * Attempt LLM-generated sprint plans. Returns { sprintCount } on success, null on failure.
  */
 async function tryLLMSprintGeneration(cwd, userPrompt, brainstormContent, config, scope) {
-  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting } = scope;
+  const { hasFrontend, hasBackend, hasMobile, hasPayments, hasRealtime, designStyle, colorStyle, darkmode, detectedTesting, assetsSummary } = scope;
 
   const agentList = [
     'planner (planning)', 'designer (frontend)', 'nextjs-executor (frontend)', 'react-executor (frontend)',
@@ -1811,6 +1812,9 @@ ${userPrompt}
 
 ## Brainstorming Answers
 ${brainstormContent}
+
+## Shared Assets & References
+${assetsSummary || 'None'}
 
 ## Scope
 - Frontend: ${hasFrontend ? 'YES' : 'NO'} (Design style: ${designStyle}, Colors: ${colorStyle}, Dark Mode Strategy: ${darkmode})
@@ -1864,7 +1868,9 @@ Return ONLY this JSON structure (no markdown, no explanation):
 9. If design style is Glassmorphism/Neumorphism — include a designer task for design tokens in Sprint 1
 10. If payments needed — include payment integration task in a sprint
 11. If realtime needed — include WebSocket/SSE task in a sprint
-12. Under Frontend, STRICTLY respect the Dark Mode Strategy: if strategy is "light only", do NOT generate any dark mode setups, variables, toggles or dark styles. If strategy is "always dark", design the UI strictly for dark backgrounds.`;
+12. Under Frontend, STRICTLY respect the Dark Mode Strategy: if strategy is "light only", do NOT generate any dark mode setups, variables, toggles or dark styles. If strategy is "always dark", design the UI strictly for dark backgrounds.
+13. If any shared assets or references are listed under "Shared Assets & References" (such as a backend folder, frontend theme components, config files, or stylesheets), you MUST generate sprint tasks that explicitly guide the agents to review, copy, integrate, or take implementation experience from these reference assets to build the new frontend/backend.
+14. When designing tasks for backend/frontend scaffolding, instruct the agents to use the LATEST stable dependencies, commands, and coding styles, starting by running the official command-line initializers (like npx create-next-app@latest or composer create-project laravel/laravel) directly in the target directories to build a clean architecture structure.`;
 
   const llmOutput = await invokePlanningLLM(llmPrompt, config, cwd);
   if (!llmOutput) return null;
@@ -2201,6 +2207,47 @@ function extractPromptFromStartMd(content) {
   if (match) return match[1].trim();
   const lines = content.split('\n').filter(l => !l.startsWith('#') && l.trim().length > 0);
   return lines.join(' ').slice(0, 500);
+}
+
+function getAssetsSummary(cwd) {
+  const assetsDir = path.join(cwd, LOCAL_DIR_NAME, 'assets');
+  if (!fs.existsSync(assetsDir)) {
+    return 'None';
+  }
+
+  const summary = [];
+  try {
+    const files = fs.readdirSync(assetsDir);
+    if (files.length === 0) {
+      return 'None';
+    }
+
+    for (const file of files) {
+      const filePath = path.join(assetsDir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat.isDirectory()) {
+        const subfiles = fs.readdirSync(filePath);
+        summary.push(`- Directory \`${file}/\` containing ${subfiles.length} items (e.g. ${subfiles.slice(0, 5).map(f => \`\`\${f}\`\`).join(', ')}). This contains shared reference code/implementation for this category.`);
+      } else {
+        const ext = path.extname(file).toLowerCase();
+        if (['.txt', '.md', '.json', '.js', '.ts', '.css', '.html', '.php', '.py'].includes(ext)) {
+          try {
+            const content = fs.readFileSync(filePath, 'utf8').slice(0, 500);
+            summary.push(`- File \`${file}\` (\${stat.size} bytes). Preview of contents:\n\`\`\`\n\${content}\n\`\`\``);
+          } catch {
+            summary.push(`- File \`${file}\` (\${stat.size} bytes).`);
+          }
+        } else {
+          summary.push(`- File \`${file}\` (\${stat.size} bytes) - type: \`\${ext || 'binary'}\`.`);
+        }
+      }
+    }
+  } catch (err) {
+    return `Error scanning assets: \${err.message}`;
+  }
+
+  return summary.join('\n');
 }
 
 function resolveQuestionKey(content, keywords) {
