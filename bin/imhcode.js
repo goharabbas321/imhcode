@@ -3046,6 +3046,17 @@ async function runGuiCommand(restArgs) {
   // 3. Inject customized views, routes, models, migrations and controllers
   setupLaravelGui(guiPath);
 
+  // 3b. Automatically register the folder from which imhcode gui was executed
+  const currentPath = process.cwd();
+  const folderName = path.basename(currentPath);
+  try {
+    const escapedPath = currentPath.replace(/\\/g, '\\\\');
+    execSync(`php artisan imhcode:register "${folderName}" "${escapedPath}"`, { cwd: guiPath, stdio: 'ignore' });
+    console.log(`✅ Automatically registered project "${folderName}" (${currentPath})`);
+  } catch (e) {
+    // Suppress errors if database is not migrated yet or locked
+  }
+
   // 4. Serve
   console.log(`\n🚀 Starting Laravel server on http://localhost:${port}`);
   if (openBrowser) {
@@ -3456,6 +3467,36 @@ return new class extends Migration {
 </html>
 `;
   fs.writeFileSync(path.join(viewsDir, 'project.blade.php'), projectView, 'utf8');
+
+  // Generate Command: RegisterProject.php
+  const consoleDir = path.join(guiPath, 'app', 'Console', 'Commands');
+  if (!fs.existsSync(consoleDir)) fs.mkdirSync(consoleDir, { recursive: true });
+  const commandContent = `<?php
+namespace App\\Console\\Commands;
+
+use Illuminate\\Console\\Command;
+use Illuminate\\Support\\Facades\\DB;
+
+class RegisterProject extends Command {
+    protected $signature = 'imhcode:register {name} {path}';
+    protected $description = 'Register a project in the dashboard';
+
+    public function handle() {
+        $name = $this->argument('name');
+        $path = $this->argument('path');
+
+        DB::table('projects')->updateOrInsert(
+            ['path' => $path],
+            [
+                'name' => $name,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+    }
+}
+`;
+  fs.writeFileSync(path.join(consoleDir, 'RegisterProject.php'), commandContent, 'utf8');
 
   // Trigger migration
   try {
