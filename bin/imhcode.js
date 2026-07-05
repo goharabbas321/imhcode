@@ -2377,15 +2377,37 @@ function detectSprintDocs(cwd) {
   return fs.readdirSync(docsDir).some(f => /^sprint-\d+$/i.test(f));
 }
 
+function isSprintComplete(cwd, sprintNum) {
+  const progressPath = path.join(cwd, DOCS_DIR, `sprint-${sprintNum}`, 'progress.md');
+  if (!fs.existsSync(progressPath)) return false;
+  try {
+    const content = fs.readFileSync(progressPath, 'utf8');
+    return !/-\s*\[\s*\]/i.test(content);
+  } catch {
+    return false;
+  }
+}
+
 function detectCurrentSprint(cwd) {
   const docsDir = path.join(cwd, DOCS_DIR);
   if (!fs.existsSync(docsDir)) return 1;
-  let max = 0;
+  
+  const sprintNums = [];
   for (const f of fs.readdirSync(docsDir)) {
     const m = f.match(/^sprint-(\d+)$/i);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
+    if (m) sprintNums.push(parseInt(m[1], 10));
   }
-  return max || 1;
+  
+  if (sprintNums.length === 0) return 1;
+  sprintNums.sort((a, b) => a - b);
+  
+  for (const num of sprintNums) {
+    if (!isSprintComplete(cwd, num)) {
+      return num;
+    }
+  }
+  
+  return sprintNums[sprintNums.length - 1];
 }
 
 function detectLastSprint(cwd) {
@@ -3063,9 +3085,9 @@ async function runTuiCommand() {
 
     // Step 2: Requirements
     if (state.hasConfig && !state.hasStart) {
-      items.push({ id: 'write', name: 'Write Requirements', desc: '⚠️ Edit docs/start.md (Required)', highlight: true });
+      items.push({ id: 'write', name: 'Write Requirements', desc: '⚠️ Input requirements & scope (Required)', highlight: true });
     } else if (state.hasConfig) {
-      items.push({ id: 'write', name: 'Write Requirements', desc: 'Edit docs/start.md requirements' });
+      items.push({ id: 'write', name: 'Write Requirements', desc: 'Input requirements & scope answers' });
     }
 
     // Step 3: Plan & Brainstorm
@@ -3346,69 +3368,94 @@ async function runTuiCommand() {
         process.stdin.pause();
         process.stdout.write(ANSI.showCursor + '\n');
 
-        // Let user choose how they want to edit
-        console.log('Requirements Editor Options:');
-        console.log('  [1] Open docs/start.md in default terminal editor (nano, vi, notepad)');
-        console.log('  [2] Open docs/start.md in VS Code (code)');
-        console.log('  [3] Edit project description directly in terminal');
+        console.log(ANSI.cyan + '\n🕌 IMH-Code — Write Requirements' + ANSI.reset);
+        console.log('Enter your project description below (press Enter on empty line to finish):\n');
         
-        const rlEdit = readline.createInterface({ input: process.stdin, output: process.stdout });
-        const choice = await new Promise(res => rlEdit.question('\nSelect option [1-3] (default: 1): ', res));
-        rlEdit.close();
-
-        const startMdPath = path.join(cwd, START_MD);
+        const lines = [];
+        const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
         
-        if (choice === '2') {
-          try {
-            execSync(`code "${startMdPath}"`, { stdio: 'inherit' });
-            console.log('📂 Opened docs/start.md in VS Code.');
-          } catch {
-            console.log('⚠️  Failed to launch VS Code ("code" CLI not in path). Fallback to standard editor.');
-            const editor = process.env.EDITOR || (process.platform === 'win32' ? 'notepad' : 'nano');
-            execSync(`${editor} "${startMdPath}"`, { stdio: 'inherit' });
-          }
-        } else if (choice === '3') {
-          console.log('\nEnter your new project description below (press Enter on empty line to finish):\n');
-          const lines = [];
-          const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
-          while (true) {
-            const line = await new Promise(res => rlInput.question('> ', res));
-            if (line.trim() === '') break;
-            lines.push(line);
-          }
-          rlInput.close();
-          
-          if (lines.length > 0) {
-            // Write to docs/start.md within markers
-            let startContent = '';
-            if (fs.existsSync(startMdPath)) {
-              startContent = fs.readFileSync(startMdPath, 'utf8');
-            }
-            
-            const desc = lines.join('\n');
-            const markerStart = '<!-- WRITE_PROMPT_HERE -->';
-            const markerEnd = '<!-- END_PROMPT -->';
-            
-            if (startContent.includes(markerStart) && startContent.includes(markerEnd)) {
-              const before = startContent.split(markerStart)[0];
-              const after = startContent.split(markerEnd)[1];
-              const newContent = `${before}${markerStart}\n${desc}\n${markerEnd}${after}`;
-              fs.writeFileSync(startMdPath, newContent, 'utf8');
-            } else {
-              // Write a simple template with markers
-              const newContent = `# 🕌 IMH-Code — Project Start\n\n${markerStart}\n${desc}\n${markerEnd}\n`;
-              fs.writeFileSync(startMdPath, newContent, 'utf8');
-            }
-            console.log('✅ Requirements updated successfully in docs/start.md!');
-          }
-        } else {
-          const editor = process.env.EDITOR || (process.platform === 'win32' ? 'notepad' : 'nano');
-          try {
-            execSync(`${editor} "${startMdPath}"`, { stdio: 'inherit' });
-          } catch (err) {
-            console.error(`❌ Failed to launch editor: ${err.message}`);
-          }
+        while (true) {
+          const line = await new Promise(res => rlInput.question('> ', res));
+          if (line.trim() === '') break;
+          lines.push(line);
         }
+        
+        const desc = lines.join('\n');
+        if (desc.trim() === '') {
+          console.log('⚠️  No requirements entered. Aborting.');
+          rlInput.close();
+          inSubMode = false;
+          if (isRaw) process.stdin.setRawMode(true);
+          process.stdin.resume();
+          renderMenu();
+          break;
+        }
+
+        // Ask for backend
+        let backend = 'yes';
+        while (true) {
+          const ans = await new Promise(res => rlInput.question('\nDo you need a backend API / server-side logic? (yes/no/unsure) [default: yes]: ', res));
+          const cleanAns = ans.trim().toLowerCase();
+          if (cleanAns === '') { backend = 'yes'; break; }
+          if (['yes', 'no', 'unsure'].includes(cleanAns)) { backend = cleanAns; break; }
+          console.log('❌ Invalid input. Please enter yes, no, or unsure.');
+        }
+
+        // Ask for mobile
+        let mobile = 'no';
+        while (true) {
+          const ans = await new Promise(res => rlInput.question('Do you need a mobile app (iOS/Android)? (yes/no) [default: no]: ', res));
+          const cleanAns = ans.trim().toLowerCase();
+          if (cleanAns === '') { mobile = 'no'; break; }
+          if (['yes', 'no'].includes(cleanAns)) { mobile = cleanAns; break; }
+          console.log('❌ Invalid input. Please enter yes or no.');
+        }
+        
+        rlInput.close();
+
+        // Write start.md template
+        const startMdPath = path.join(cwd, START_MD);
+        const startMdContent = [
+          '# 🕌 IMH-Code — Project Start',
+          '',
+          '> **Imam Hussain Coding Harness Platform**',
+          '',
+          '---',
+          '',
+          '## ⚡ Quick Scope Check',
+          '',
+          '**Do you need a backend API / server-side logic?**',
+          `> **Answer:** ${backend}`,
+          '',
+          '**Do you need a mobile app (iOS/Android)?**',
+          `> **Answer:** ${mobile}`,
+          '',
+          '---',
+          '',
+          '## 📝 Your Project Description',
+          '',
+          '<!-- WRITE_PROMPT_HERE -->',
+          desc,
+          '<!-- END_PROMPT -->',
+          '',
+          '---',
+          '',
+          '## 🚀 Next Step',
+          '',
+          'After filling in the scope and your description, run:',
+          '',
+          '```bash',
+          'imhcode plan',
+          '```'
+        ].join('\n');
+
+        // Ensure directories exist
+        const docsDir = path.dirname(startMdPath);
+        if (!fs.existsSync(docsDir)) {
+          fs.mkdirSync(docsDir, { recursive: true });
+        }
+        fs.writeFileSync(startMdPath, startMdContent, 'utf8');
+        console.log('\n✅ Requirements updated successfully in docs/start.md!');
 
         inSubMode = false;
         if (isRaw) process.stdin.setRawMode(true);
