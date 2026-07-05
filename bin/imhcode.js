@@ -108,7 +108,13 @@ if (command === 'plan') {
     process.exit(1);
   });
 } else if (command === 'gui') {
-  runGuiCommand(args.slice(1)).catch(err => {
+  console.log('💡 Note: \'imhcode gui\' is deprecated in favor of the interactive TUI.');
+  runTuiCommand().catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'init') {
+  runInit().catch(err => {
     console.error(err.message ?? err);
     process.exit(1);
   });
@@ -124,8 +130,8 @@ if (command === 'plan') {
     process.exit(1);
   });
 } else {
-  // Default: framework initialization
-  runInit().catch(err => {
+  // Default: start interactive TUI
+  runTuiCommand().catch(err => {
     console.error(err.message ?? err);
     process.exit(1);
   });
