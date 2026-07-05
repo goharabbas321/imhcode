@@ -3170,14 +3170,14 @@ async function runTuiCommand() {
     const infoLeft = ` Project: ${projectName}`;
     const infoRight = `Path: ${cwd.length > 35 ? '...' + cwd.slice(-32) : cwd} `;
     const paddingInfo = width - 4 - infoLeft.length - infoRight.length;
-    console.log(ANSI.cyan + `  │` + ANSI.reset + ANSI.bold + infoLeft + ' '.repeat(paddingInfo) + ANSI.dim + infoRight + ANSI.cyan + `│` + ANSI.reset);
+    console.log(ANSI.cyan + `  │` + ANSI.reset + ANSI.bold + infoLeft + ' '.repeat(Math.max(0, paddingInfo)) + ANSI.dim + infoRight + ANSI.cyan + `│` + ANSI.reset);
     
     const statusLine = ` Status:  ${statusStr}`;
     const engineLine = `Engine: ${engineStr} `;
     const statusClean = statusLine.replace(/\x1b\[[0-9;]*m/g, '');
     const engineClean = engineLine.replace(/\x1b\[[0-9;]*m/g, '');
     const paddingStatus = width - 4 - statusClean.length - engineClean.length;
-    console.log(ANSI.cyan + `  │` + ANSI.reset + statusLine + ' '.repeat(paddingStatus) + ANSI.dim + engineLine + ANSI.cyan + `│` + ANSI.reset);
+    console.log(ANSI.cyan + `  │` + ANSI.reset + statusLine + ' '.repeat(Math.max(0, paddingStatus)) + ANSI.dim + engineLine + ANSI.cyan + `│` + ANSI.reset);
     
     console.log(ANSI.cyan + `  ├${'─'.repeat(width - 4)}┤` + ANSI.reset);
 
@@ -3225,7 +3225,7 @@ async function runTuiCommand() {
   function centerText(text, width) {
     const cleanText = text.replace(/\x1b\[[0-9;]*m/g, '');
     const padding = Math.max(0, Math.floor((width - cleanText.length) / 2));
-    return ' '.repeat(padding) + text + ' '.repeat(width - cleanText.length - padding);
+    return ' '.repeat(padding) + text + ' '.repeat(Math.max(0, width - cleanText.length - padding));
   }
 
   // Set up standard input listener
