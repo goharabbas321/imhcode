@@ -55,6 +55,15 @@ imhcode agent run <id> "task" # Run a specific agent directly
   --live                     # Run with live LLM (dry-run by default)
   --engine <engine>          # Override engine
   --model <model>            # Override model
+
+# Usability Upgrades (v2.0)
+imhcode modify "task"        # Quick in-place codebase modification
+imhcode feature "desc"       # Generate a targeted mini-sprint for a new feature
+imhcode execute-feature [N]  # Execute planned feature sprint N
+imhcode fix "bug desc"       # Targeted bug fix (alias for modify)
+imhcode scan [path]          # Scan local stack and project configuration
+imhcode import [path]        # Import existing codebase and generate context
+imhcode gui [--port N]       # Start the Laravel GUI Control Center web server
 ```
 
 ---
@@ -68,3 +77,23 @@ Model routing is defined under `model_routing` in `imhcode.config.json`:
 - **testing**: GPT-5.5 (Primary)
 - **review**: GPT-5.5 (Primary)
 - **fast**: DeepSeek V4 Flash (Primary)
+
+---
+
+## 5. Codebase Scanning & Importing (v2.0)
+
+You can bring existing projects (Next.js, Laravel, React, etc.) under the IMH-Code multi-agent framework:
+- Run `imhcode scan /path/to/project` to inspect the project layout and dependencies.
+- Run `imhcode import /path/to/project` to generate the `.imhcode/import-map.json` mapping, `PROJECT_BRIEF.md`, and `.imhcode/context.md` project configurations automatically.
+
+## 6. Targeted Codebase Modifications
+
+Instead of starting greenfield projects, you can modify existing code bases in-place:
+- Run `imhcode modify "Add a contact form to the page"` to auto-detect the best agent, compile a dynamic context-aware prompt, and run in-place code edits.
+- Run `imhcode feature "Add Stripe checkout"` to plan a targeted mini-sprint of 1-3 tasks for a new feature addition. Run `imhcode execute-feature {N}` to execute.
+
+## 7. Laravel GUI Control Center
+
+Run `imhcode gui` to launch a beautiful dark-mode web console (Laravel 12 + Livewire 3 + Tailwind CSS v4) to manage your projects, sprints, and code modifications via a simple graphical user interface.
+- Scaffolded automatically under `~/.imhcode/gui/`.
+- Manage projects, visual kanbans, trigger executes, and run quick modifications directly from the web browser.

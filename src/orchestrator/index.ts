@@ -48,6 +48,14 @@ export {
 // Session
 export { saveSession, resolveSessionDir } from "./session";
 
+// Modification & Scanning
+export { scanProjectContext, buildModificationPrompt, detectBestAgent } from "./context-scanner";
+export { runModification } from "./modification-engine";
+
+// Project Import & Extension
+export { scanProject } from "./project-scanner";
+export { importProject } from "./import-engine";
+
 // ─── High-level run function ──────────────────────────────────────────────────
 
 import * as fs from "fs";

@@ -33,6 +33,17 @@ imhcode agent run <id> "<task>" --live \
   --output <path>
 ```
 
+### Usability Upgrades (v2.0)
+```bash
+imhcode modify "task"                               # Modify codebase in-place (auto-select agent)
+imhcode modify "task" --agent laravel-executor --live # Run live modification with specific agent
+imhcode feature "description"                       # Plan a targeted 1-3 task mini-sprint for a new feature
+imhcode execute-feature [N]                         # Run planned feature sprint N
+imhcode scan [path]                                 # Deep scan layout and framework stack
+imhcode import [path]                               # Import existing project and generate context
+imhcode gui [--port N]                              # Boot the Laravel web control panel (localhost:8000)
+```
+
 ---
 
 ## How Agent Execution Works

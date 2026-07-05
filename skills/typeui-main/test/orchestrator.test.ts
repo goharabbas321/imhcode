@@ -3,55 +3,108 @@ import * as fs from "fs";
 import * as path from "path";
 import { loadMemoryFiles } from "../../../src/orchestrator/loader";
 import { getRoleKeyForAgent, resolveAgentIdAlias } from "../../../src/orchestrator/index";
+import { scanProjectContext, detectBestAgent } from "../../../src/orchestrator/context-scanner";
+import { scanProject, ScanResult } from "../../../src/orchestrator/project-scanner";
+import { importProject } from "../../../src/orchestrator/import-engine";
 
 describe("orchestrator resolveAgentIdAlias", () => {
-  it("resolves Zara aliases correctly", () => {
-    expect(resolveAgentIdAlias("zara-seo")).toBe("zara-content");
-    expect(resolveAgentIdAlias("Zara")).toBe("zara-content");
-  });
-
-  it("resolves Farhan aliases correctly", () => {
-    expect(resolveAgentIdAlias("farhan-growth")).toBe("farhan-marketing");
-    expect(resolveAgentIdAlias("farhan")).toBe("farhan-marketing");
-  });
-
-  it("resolves other mismatched agent aliases", () => {
-    expect(resolveAgentIdAlias("taha-slides")).toBe("taha-presentation");
-    expect(resolveAgentIdAlias("sami-spatial")).toBe("sami-computational");
-    expect(resolveAgentIdAlias("yahya-phd")).toBe("yahya-researcher");
-    expect(resolveAgentIdAlias("maryam-business")).toBe("maryam-ops");
-    expect(resolveAgentIdAlias("zainab-product-manager")).toBe("zainab-pm");
-    expect(resolveAgentIdAlias("gohar")).toBe("gohar-ceo");
+  it("resolves generic agent aliases correctly", () => {
+    expect(resolveAgentIdAlias("nextjs")).toBe("nextjs-executor");
+    expect(resolveAgentIdAlias("laravel")).toBe("laravel-executor");
+    expect(resolveAgentIdAlias("qa")).toBe("tester");
+    expect(resolveAgentIdAlias("security")).toBe("security-auditor");
+    expect(resolveAgentIdAlias("seo")).toBe("seo-optimizer");
+    expect(resolveAgentIdAlias("debug")).toBe("debugger");
   });
 
   it("returns canonical ID unchanged", () => {
-    expect(resolveAgentIdAlias("karar-frontend")).toBe("karar-frontend");
+    expect(resolveAgentIdAlias("laravel-executor")).toBe("laravel-executor");
   });
 });
 
 describe("orchestrator getRoleKeyForAgent", () => {
-  it("resolves security roles correctly", () => {
-    expect(getRoleKeyForAgent("hamid-security", "Audit the authentication code")).toBe("primary_security_reviewer");
-    expect(getRoleKeyForAgent("hamid-security", "Laravel security fallback audit")).toBe("security_fallback");
+  it("resolves generic executor roles correctly", () => {
+    expect(getRoleKeyForAgent("nextjs-executor", "Build a dashboard")).toBe("frontend");
+    expect(getRoleKeyForAgent("laravel-executor", "Create API route")).toBe("backend");
+    expect(getRoleKeyForAgent("planner", "Define architecture")).toBe("planning");
+    expect(getRoleKeyForAgent("tester", "Run E2E tests")).toBe("testing");
+    expect(getRoleKeyForAgent("debugger", "Fix authentication issue")).toBe("review");
+  });
+});
+
+describe("project scanners and imports", () => {
+  const tempDir = path.join(process.cwd(), ".tmp-tests", `import-test-${Date.now()}`);
+
+  it("scans and imports project structures correctly", () => {
+    // 1. Create a dummy Next.js + Laravel project layout
+    fs.mkdirSync(tempDir, { recursive: true });
+    fs.mkdirSync(path.join(tempDir, "frontend"), { recursive: true });
+    fs.mkdirSync(path.join(tempDir, "backend"), { recursive: true });
+
+    // Write package.json
+    fs.writeFileSync(
+      path.join(tempDir, "frontend", "package.json"),
+      JSON.stringify({
+        name: "test-frontend",
+        dependencies: {
+          next: "^15.0.0",
+          react: "^19.0.0"
+        }
+      })
+    );
+
+    // Write composer.json
+    fs.writeFileSync(
+      path.join(tempDir, "backend", "composer.json"),
+      JSON.stringify({
+        name: "laravel/laravel",
+        require: {
+          "laravel/framework": "^11.0"
+        }
+      })
+    );
+
+    // Write .env with pgsql database config
+    fs.writeFileSync(
+      path.join(tempDir, ".env"),
+      "DB_CONNECTION=pgsql\nDATABASE_URL=postgresql://localhost:5432/test"
+    );
+
+    // 2. Test project scanner
+    const scanResult = scanProject(tempDir);
+    expect(scanResult.detectedFrontend).toBe("Next.js");
+    expect(scanResult.detectedBackend).toBe("Laravel");
+    expect(scanResult.frontendPath).toBe("frontend");
+    expect(scanResult.backendPath).toBe("backend");
+    expect(scanResult.database).toBe("PostgreSQL");
+
+    // 3. Test context scanner
+    const contextScan = scanProjectContext(tempDir);
+    expect(contextScan.hasFrontend).toBe(true);
+    expect(contextScan.hasBackend).toBe(true);
+    expect(contextScan.frontendFramework).toBe("Next.js");
+    expect(contextScan.backendFramework).toBe("Laravel");
+
+    // 4. Test best agent detection
+    expect(detectBestAgent("fix a bug in navbar component", contextScan)).toBe("nextjs-executor");
+    expect(detectBestAgent("create a database migration for comments table", contextScan)).toBe("laravel-executor");
+
+    // 5. Test import execution
+    const importResult = importProject(tempDir);
+    expect(importResult.success).toBe(true);
+    expect(importResult.importMap.frontend).toBe("frontend");
+    expect(importResult.importMap.backend).toBe("backend");
+
+    // Check generated files exist
+    expect(fs.existsSync(path.join(tempDir, ".imhcode", "import-map.json"))).toBe(true);
+    expect(fs.existsSync(path.join(tempDir, "PROJECT_BRIEF.md"))).toBe(true);
   });
 
-  it("resolves debugger roles correctly", () => {
-    expect(getRoleKeyForAgent("sajjad-debugger", "Fix login bug")).toBe("fast_bug_fixing");
-  });
-
-  it("resolves designer roles correctly", () => {
-    expect(getRoleKeyForAgent("mustafa-visual", "Create hero section")).toBe("primary_design_brain");
-    expect(getRoleKeyForAgent("mahdi-designer", "Polish the UX layout")).toBe("design_polish_ux_review");
-  });
-
-  it("resolves frontend roles correctly", () => {
-    expect(getRoleKeyForAgent("karar-frontend", "Build button component")).toBe("frontend_builder");
-    expect(getRoleKeyForAgent("karar-frontend", "Verify and review final frontend")).toBe("frontend_final_review");
-  });
-
-  it("resolves backend roles correctly", () => {
-    expect(getRoleKeyForAgent("tariq-backend", "Write DB migration")).toBe("primary_backend_builder");
-    expect(getRoleKeyForAgent("tariq-backend", "Refactor multiple files in Laravel")).toBe("backend_multi_file_builder");
+  // Clean up
+  afterAll(() => {
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -59,14 +112,12 @@ describe("loadMemoryFiles exclusions and limits", () => {
   const tempDir = path.join(process.cwd(), ".tmp-tests", `mem-test-${Date.now()}`);
 
   it("filters out binary files, lockfiles, excluded directories, and large files", async () => {
-    // 1. Create temp structures
     fs.mkdirSync(tempDir, { recursive: true });
     fs.mkdirSync(path.join(tempDir, "docs"), { recursive: true });
     fs.mkdirSync(path.join(tempDir, "node_modules"), { recursive: true });
     fs.mkdirSync(path.join(tempDir, "frontend", ".next"), { recursive: true });
     fs.mkdirSync(path.join(tempDir, "backend", "build"), { recursive: true });
 
-    // 2. Write files
     fs.writeFileSync(path.join(tempDir, "docs", "test.md"), "hello docs");
     fs.writeFileSync(path.join(tempDir, "docs", "info.txt"), "hello info");
     fs.writeFileSync(path.join(tempDir, "node_modules", "bad.js"), "console.log('bad')");
@@ -75,7 +126,6 @@ describe("loadMemoryFiles exclusions and limits", () => {
     fs.writeFileSync(path.join(tempDir, "frontend", "image.png"), "binary png contents");
     fs.writeFileSync(path.join(tempDir, "package-lock.json"), "{}");
 
-    // Write a file larger than 1MB
     const largeFilePath = path.join(tempDir, "docs", "large.txt");
     const largeContent = "a".repeat(1024 * 1024 + 10);
     fs.writeFileSync(largeFilePath, largeContent);
@@ -86,10 +136,8 @@ describe("loadMemoryFiles exclusions and limits", () => {
       }
     };
 
-    // 3. Execute loadMemoryFiles
     const files = await loadMemoryFiles(mockManifest, tempDir);
 
-    // 4. Verify results
     const relativePaths = files.map(f => path.relative(tempDir, f.path).replace(/\\/g, "/"));
     expect(relativePaths).toContain("docs/test.md");
     expect(relativePaths).toContain("docs/info.txt");
@@ -104,7 +152,6 @@ describe("loadMemoryFiles exclusions and limits", () => {
     expect(files.find(f => f.path.endsWith("info.txt"))?.content).toBe("hello info");
   });
 
-  // Clean up
   afterAll(() => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });

@@ -11,6 +11,14 @@
 
 ---
 
+## 📚 Documentation
+
+For detailed information on how to configure and execute IMH-Code, see:
+*   [User Manual](USER_MANUAL.md) — Comprehensive guide on pipeline phases, stack configurations, and custom agent systems.
+*   [CLI Execution Guide](CLI_EXECUTION_GUIDE.md) — Command reference, usage options, aliases, and agent execution architectures.
+
+---
+
 ## ⚡ Quick Start
 
 ### 1. Install Globally
@@ -38,6 +46,16 @@ IMH-Code enforces a fast-first software delivery pipeline:
 4. **Sprint Plan**: Sprints, tasks, and shell execution scripts are generated.
 5. **Execute**: Run `imhcode execute 1` (or specify sprint). Respects your selected testing mode.
 6. **Test**: Run `imhcode test` to execute E2E browser tests, security audit, and SEO scans.
+
+---
+
+## 🛠️ Usability Upgrades (v2.0)
+
+Version 2.0 introduces powerful new commands for codebase scanning, project imports, in-place changes, and graphical control:
+- **Scan & Import**: Run `imhcode scan` or `imhcode import` to bring existing projects (Next.js, Laravel, React, etc.) under orchestration. Maps project folders to `.imhcode/import-map.json` automatically.
+- **In-place Modifications**: Run `imhcode modify "task"` to auto-detect the target agent and run in-place code adjustments.
+- **Feature Sprint Planning**: Run `imhcode feature "desc"` to plan a targeted 1-3 task mini-sprint for adding a new feature.
+- **Laravel GUI Dashboard**: Run `imhcode gui` to launch a beautiful dark-mode control center web application (Laravel 12 + Livewire 3 + Tailwind CSS v4) to manage your projects, visual Kanbans, and modifications directly from the web browser.
 
 ---
 

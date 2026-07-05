@@ -222,7 +222,32 @@ export function buildPrompt(
   }
 
   // ── 9. Category-Specific Output Rules ────────────────────────────────────
-  const categoryRules = CATEGORY_OUTPUT_RULES[category] ?? CATEGORY_OUTPUT_RULES["backend"];
+  let frontendDir = "frontend/";
+  let backendDir = "backend/";
+
+  if (cwd) {
+    const mapPath = path.join(cwd, ".imhcode", "import-map.json");
+    if (fs.existsSync(mapPath)) {
+      try {
+        const importMap = JSON.parse(fs.readFileSync(mapPath, "utf-8"));
+        if (importMap.frontend) {
+          frontendDir = importMap.frontend === "." ? "project root (./)" : `${importMap.frontend}/`;
+        }
+        if (importMap.backend) {
+          backendDir = importMap.backend === "." ? "project root (./)" : `${importMap.backend}/`;
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  let categoryRules = CATEGORY_OUTPUT_RULES[category] ?? CATEGORY_OUTPUT_RULES["backend"];
+  // Dynamically replace default folder names with actual mapped ones
+  categoryRules = categoryRules
+    .replace(/`frontend\/`/g, `\`${frontendDir}\``)
+    .replace(/`backend\/`/g, `\`${backendDir}\``);
+
   const outputLines = [
     `**Category**: ${category}`,
     `**Format**: ${manifest.output.format}`,
@@ -236,10 +261,10 @@ export function buildPrompt(
 
   // ── 10. Codebase Containment Rules ───────────────────────────────────────
   const containmentRules = [
-    `- All frontend source files, styles, assets, and components → \`frontend/\` directory ONLY.`,
-    `- All backend source files, APIs, migrations, schemas, and logic → \`backend/\` directory ONLY.`,
+    `- All frontend source files, styles, assets, and components → \`${frontendDir}\` directory ONLY.`,
+    `- All backend source files, APIs, migrations, schemas, and logic → \`${backendDir}\` directory ONLY.`,
     `- All planning and documentation → \`docs/\` directory ONLY.`,
-    `- NEVER create application code at the workspace root. Keep root clean.`,
+    `- NEVER create application code at the workspace root unless the mapped directory is root (./).`,
   ].join("\n");
   parts.push(section("Codebase Containment Rules", containmentRules));
 

@@ -82,6 +82,41 @@ if (command === 'plan') {
     console.error(err.message ?? err);
     process.exit(1);
   });
+} else if (command === 'modify') {
+  runModifyCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'feature') {
+  runFeatureCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'fix') {
+  runFixCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'import') {
+  runImportCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'scan') {
+  runScanCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'gui') {
+  runGuiCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
+} else if (command === 'execute-feature' || command === 'exec-feature') {
+  runExecuteFeatureCommand(args.slice(1)).catch(err => {
+    console.error(err.message ?? err);
+    process.exit(1);
+  });
 } else if (command === 'sprint') {
   // Legacy compat: zeoel sprint design/execute → imhcode execute
   runSprintLegacyCommand(subcommand, args.slice(2)).catch(err => {
@@ -117,6 +152,15 @@ function printGeneralHelp() {
       --engine <cli>                  → Override engine (claude|opencode|codex|agy|qwen|mimo)
       -m, --model <model>             → Override model
       --output <path>                 → Save session to custom path
+
+  Usability Upgrades (v2.0):
+    ${CLI_CMD} modify "task"          → In-place codebase modification/enhancement (runs targeted agent)
+    ${CLI_CMD} feature "description"  → Plan a targeted mini-sprint for a new feature addition
+    ${CLI_CMD} execute-feature [N]    → Execute planned feature sprint N
+    ${CLI_CMD} fix "description"      → Quick targeted bug fix modification (alias of modify)
+    ${CLI_CMD} scan [path]            → Scan existing directory structure and detect technology stacks
+    ${CLI_CMD} import [path]          → Import existing project structure and configure IMH-Code context
+    ${CLI_CMD} gui [--port N]         → Start the Laravel GUI Control Center web server
 
   Pipeline:
     1. ${CLI_CMD}                     → Init project (no frontend/backend dirs yet)
@@ -2667,3 +2711,757 @@ function ensureCavemanAndGraphify() {
     try { execSync('npx skills add juliusbrussee/caveman', { cwd: GLOBAL_DIR, stdio: 'inherit' }); console.log('  ✅ Caveman compression rules integrated globally'); } catch { /* ignore */ }
   }
 }
+
+// ─── Phase A & B Upgrade Commands ──────────────────────────────────────────────
+
+async function runModifyCommand(restArgs) {
+  const cwd = process.cwd();
+  const live = restArgs.includes('--live');
+  const agentIdx = restArgs.indexOf('--agent');
+  const agent = agentIdx >= 0 ? restArgs[agentIdx + 1] : undefined;
+  const engineIdx = restArgs.indexOf('--engine');
+  const engine = engineIdx >= 0 ? restArgs[engineIdx + 1] : undefined;
+  const modelIdx = restArgs.includes('--model') ? restArgs.indexOf('--model') : restArgs.indexOf('-m');
+  const model = modelIdx >= 0 ? restArgs[modelIdx + 1] : undefined;
+
+  const descriptionArgs = [];
+  for (let i = 0; i < restArgs.length; i++) {
+    const arg = restArgs[i];
+    if (arg === '--live') continue;
+    if (arg === '--agent' || arg === '--engine' || arg === '--model' || arg === '-m') {
+      i++;
+      continue;
+    }
+    descriptionArgs.push(arg);
+  }
+
+  const description = descriptionArgs.join(' ').trim();
+  if (!description) {
+    console.error('❌ Error: Please provide a description for the modification.');
+    console.error('   Usage: imhcode modify "description" [--agent <agent>] [--engine <engine>] [-m/--model <model>] [--live]');
+    process.exit(1);
+  }
+
+  const orc = loadOrchestrator();
+  console.log(`\n\uD83D\uDCD7 IMH-Code — Running In-place Modification`);
+  const result = await orc.runModification(cwd, description, {
+    agent,
+    engine,
+    model,
+    dryRun: !live
+  });
+
+  if (result.errors && result.errors.length > 0) {
+    console.error(`❌ Modification failed with errors:`, result.errors.join(', '));
+    process.exit(1);
+  }
+}
+
+async function runFixCommand(restArgs) {
+  return runModifyCommand(restArgs);
+}
+
+async function runFeatureCommand(restArgs) {
+  const cwd = process.cwd();
+  const live = restArgs.includes('--live');
+  
+  const descriptionArgs = [];
+  for (let i = 0; i < restArgs.length; i++) {
+    if (restArgs[i] === '--live') continue;
+    descriptionArgs.push(restArgs[i]);
+  }
+
+  const description = descriptionArgs.join(' ').trim();
+  if (!description) {
+    console.error('❌ Error: Please provide a description for the feature.');
+    console.error('   Usage: imhcode feature "description"');
+    process.exit(1);
+  }
+
+  console.log(`\n\uD83D\uDCD7 IMH-Code — Feature Sprint Planner`);
+  console.log(`   Feature: "${description}"\n`);
+
+  const config = loadLocalConfig(cwd);
+  const orc = loadOrchestrator();
+  const scanResult = orc.scanProjectContext(cwd);
+
+  const docsDir = path.join(cwd, DOCS_DIR);
+  let nextFeatureNum = 1;
+  if (fs.existsSync(docsDir)) {
+    try {
+      const folders = fs.readdirSync(docsDir);
+      for (const f of folders) {
+        const m = f.match(/^feature-(\d+)$/i);
+        if (m) nextFeatureNum = Math.max(nextFeatureNum, parseInt(m[1], 10) + 1);
+      }
+    } catch {}
+  }
+
+  const promptText = `You are the IMH-Code Planner.
+An existing project needs a new feature: "${description}"
+Existing Project Stack:
+- Frontend: ${scanResult.hasFrontend ? scanResult.frontendFramework : 'None'}
+- Backend: ${scanResult.hasBackend ? scanResult.backendFramework : 'None'}
+- Directories: ${scanResult.directories.join(', ')}
+
+Design a mini sprint plan with 1-3 tasks to implement this feature.
+Output ONLY valid JSON in this format (no explanations, no markdown fences):
+{
+  "title": "Feature: ${description.replace(/"/g, '\\"')}",
+  "tasks": [
+    {
+      "num": 1,
+      "task": "Specific task description",
+      "agent": "nextjs-executor|laravel-executor|designer|devops-executor",
+      "tier": "light|standard|complex"
+    }
+  ]
+}`;
+
+  console.log(`\uD83E\uDDE0 Invoking Planning LLM...`);
+  const llmOutput = await invokePlanningLLM(promptText, config, cwd);
+
+  let parsed;
+  if (llmOutput) {
+    try {
+      const cleaned = llmOutput.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      const jsonMatch = llmOutput.match(/\{[\s\S]*"tasks"[\s\S]*\}/);
+      if (jsonMatch) {
+        try { parsed = JSON.parse(jsonMatch[0]); } catch {}
+      }
+    }
+  }
+
+  if (!parsed || !parsed.tasks || parsed.tasks.length === 0) {
+    console.log(`\u26A0\uFE0F  Could not parse JSON. Falling back to static task plan...`);
+    parsed = {
+      title: `Feature: ${description}`,
+      tasks: [
+        { num: 1, task: `Design and implement: ${description}`, agent: scanResult.hasFrontend ? 'nextjs-executor' : 'laravel-executor', tier: 'standard' }
+      ]
+    };
+  }
+
+  await generateFeatureSprint(cwd, nextFeatureNum, parsed.title, parsed.tasks, config);
+
+  console.log(`\n\u2705 Feature sprint planned successfully!`);
+  console.log(`   Folder: docs/feature-${nextFeatureNum}/`);
+  console.log(`   Tasks planned: ${parsed.tasks.length}`);
+  console.log(`\n\uD83D\uDE80 NEXT STEPS:`);
+  console.log(`   1. Review the tasks in docs/feature-${nextFeatureNum}/plan.md`);
+  console.log(`   2. Run command to execute all feature tasks sequentially:`);
+  console.log(`      imhcode execute-feature ${nextFeatureNum}\n`);
+}
+
+async function generateFeatureSprint(cwd, featureNum, title, tasks, config) {
+  const sprintDir = path.join(cwd, DOCS_DIR, `feature-${featureNum}`);
+  fs.mkdirSync(sprintDir, { recursive: true });
+  const tasksDir  = path.join(cwd, LOCAL_DIR_NAME, 'commands', `feature-${featureNum}`);
+  fs.mkdirSync(tasksDir, { recursive: true });
+
+  let planMd = `# Feature Sprint ${featureNum}: ${title}\n\n## Task Table\n\n| # | Task | Agent | Category | Model | Tier |\n|---|------|-------|----------|-------|------|\n`;
+  tasks.forEach((t, i) => {
+    const cat = getAgentCategory(t.agent);
+    const model = config?.model_routing?.[cat]?.model || 'default';
+    planMd += `| ${i+1} | ${t.task} | \`${t.agent}\` | ${cat} | ${model} | ${t.tier} |\n`;
+  });
+  fs.writeFileSync(path.join(sprintDir, 'plan.md'), planMd, 'utf-8');
+
+  const progressMd = `# Feature Sprint ${featureNum} Progress\n\nStatus: \uD83D\uDDF2 Not Started\nStart: \u2014\nEnd: \u2014\n\n## Tasks\n` + 
+    tasks.map((t, i) => `- [ ] Task ${i+1}: ${t.task} [\`${t.agent}\`]`).join('\n') + '\n';
+  fs.writeFileSync(path.join(sprintDir, 'progress.md'), progressMd, 'utf-8');
+  fs.writeFileSync(path.join(sprintDir, 'deferred.md'), `# Feature Sprint ${featureNum} Deferred Items\n\nNone yet.\n`, 'utf-8');
+
+  for (let i = 0; i < tasks.length; i++) {
+    const t = tasks[i];
+    const taskNum = i + 1;
+    const cat = getAgentCategory(t.agent);
+    const routedEngine = config?.model_routing?.[cat]?.engine || '';
+    const routedModel  = config?.model_routing?.[cat]?.model  || '';
+
+    const engineFlag = routedEngine ? `--engine ${routedEngine}` : '';
+    const modelFlag  = routedModel  ? `--model "${routedModel}"` : '';
+
+    const taskScript = `#!/bin/bash
+# IMH-Code — Feature \${featureNum} Task \${taskNum}
+CWD="\$(cd "\$(dirname "\\\${BASH_SOURCE[0]}")" && pwd)"
+cd "\$CWD/../../.."
+
+PROGRESS_FILE="\$CWD/../../../docs/feature-${featureNum}/progress.md"
+if [ -f "\$PROGRESS_FILE" ]; then
+  if grep -q -e "- \\\\[xX\\\\] Task \${taskNum}:" "\$PROGRESS_FILE"; then
+    echo "\u2705 Task \${taskNum} is already completed. Skipping."
+    exit 0
+  fi
+fi
+
+TASK="${t.task.replace(/"/g, '\\"')}"
+
+echo "\uD83D\uDCCB Running Task \${taskNum}: ${t.task}"
+echo "   Agent: ${t.agent}"
+echo "   Model: ${routedModel || 'default'} via ${routedEngine || 'default'}"
+
+if command -v imhcode >/dev/null 2>&1; then
+  imhcode agent run ${t.agent} "\$TASK" --live ${engineFlag} ${modelFlag}
+else
+  node "\$(npm root -g)/imhcode/bin/imhcode.js" agent run ${t.agent} "\$TASK" --live ${engineFlag} ${modelFlag}
+fi
+
+if [ \$? -eq 0 ]; then
+  if [ -f "\$PROGRESS_FILE" ]; then
+    sed -i '' "s/- \\\\[ \\\\] Task \${taskNum}:/- [x] Task \${taskNum}:/g" "\$PROGRESS_FILE" 2>/dev/null || sed -i "s/- \\\\[ \\\\] Task \${taskNum}:/- [x] Task \${taskNum}:/g" "\$PROGRESS_FILE"
+    echo "\u2705 Marked Task \${taskNum} as completed."
+  fi
+fi
+`;
+    fs.writeFileSync(path.join(tasksDir, `task_${taskNum}.sh`), taskScript, { mode: 0o755 });
+  }
+
+  const runAllScript = `#!/bin/bash
+# IMH-Code — Run Feature Sprint ${featureNum}
+set -e
+CWD="\$(cd "\$(dirname "\\\${BASH_SOURCE[0]}")" && pwd)"
+TASKS_DIR="\$CWD/../../.imhcode/commands/feature-${featureNum}"
+
+echo "\uD83D\uDCD7 IMH-Code — Executing Feature Sprint ${featureNum}"
+` + tasks.map((t, i) => `echo "\\n─── Task ${i+1}/${tasks.length} ───"\nbash "\$TASKS_DIR/task_${i+1}.sh"`).join('\n') + `\n\necho "\\n\uD83C\uDFC1 Feature Sprint ${featureNum} completed!"\n`;
+  fs.writeFileSync(path.join(sprintDir, 'run_all_tasks.sh'), runAllScript, { mode: 0o755 });
+}
+
+async function runExecuteFeatureCommand(restArgs) {
+  const cwd = process.cwd();
+  const featureNum = parseInt(restArgs[0], 10);
+  if (isNaN(featureNum)) {
+    console.error('\u274C Error: Please specify a feature number to execute.');
+    console.error('   Usage: imhcode execute-feature <number>');
+    process.exit(1);
+  }
+
+  const scriptPath = path.join(cwd, 'docs', `feature-${featureNum}`, 'run_all_tasks.sh');
+  if (!fs.existsSync(scriptPath)) {
+    console.error(`\u274C Error: Feature sprint ${featureNum} not found.`);
+    process.exit(1);
+  }
+
+  try { fs.chmodSync(scriptPath, 0o755); } catch {}
+  console.log(`\n\uD83D\uDCD7 IMH-Code — Executing Feature ${featureNum}\n`);
+  execSync(`sh "${scriptPath}"`, { stdio: 'inherit', cwd });
+}
+
+async function runImportCommand(restArgs) {
+  const cwd = process.cwd();
+  const targetDir = restArgs[0] ? path.resolve(cwd, restArgs[0]) : cwd;
+
+  console.log(`\n\uD83D\uDCD7 IMH-Code — Importing Codebase`);
+  console.log(`   Target Directory: ${targetDir}\n`);
+
+  if (!fs.existsSync(targetDir)) {
+    console.error(`\u274C Error: Directory does not exist: ${targetDir}`);
+    process.exit(1);
+  }
+
+  const orc = loadOrchestrator();
+  const result = orc.importProject(targetDir);
+
+  if (result.success) {
+    console.log(`\n\u2705 Codebase imported successfully!`);
+    console.log(`   Stack detected:`);
+    console.log(`     Frontend:  ${result.scanResult.detectedFrontend || 'None'}`);
+    console.log(`     Backend:   ${result.scanResult.detectedBackend || 'None'}`);
+    console.log(`     Database:  ${result.scanResult.database || 'None'}`);
+    console.log(`\n\uD83D\uDCBE Context files generated:`);
+    console.log(`     • ${path.join(targetDir, '.imhcode', 'import-map.json')}`);
+    console.log(`     • ${path.join(targetDir, 'PROJECT_BRIEF.md')}`);
+    console.log(`     • ${path.join(targetDir, '.imhcode', 'context.md')}`);
+    console.log(`\n\uD83D\uDE80 You can now run "imhcode modify" or "imhcode feature" inside this directory.`);
+  } else {
+    console.error(`\u274C Import failed.`);
+    process.exit(1);
+  }
+}
+
+async function runScanCommand(restArgs) {
+  const cwd = process.cwd();
+  const targetDir = restArgs[0] ? path.resolve(cwd, restArgs[0]) : cwd;
+
+  console.log(`\n\uD83D\uDCD7 IMH-Code — Scanning Codebase`);
+  console.log(`   Target Directory: ${targetDir}\n`);
+
+  if (!fs.existsSync(targetDir)) {
+    console.error(`\u274C Error: Directory does not exist: ${targetDir}`);
+    process.exit(1);
+  }
+
+  const orc = loadOrchestrator();
+  const scanResult = orc.scanProject(targetDir);
+
+  console.log(`\uD83D\uDD0D Scan Results:`);
+  console.log(`   Frontend Stack: ${scanResult.detectedFrontend || 'None'} (Path: ${scanResult.frontendPath || 'N/A'})`);
+  console.log(`   Backend Stack:  ${scanResult.detectedBackend || 'None'} (Path: ${scanResult.backendPath || 'N/A'})`);
+  console.log(`   Database:       ${scanResult.database || 'None'}`);
+  console.log(`   Dockerized:     ${scanResult.dockerized ? 'Yes' : 'No'}`);
+  console.log(`   CI/CD Pipelines: ${scanResult.hasCICD ? 'Yes' : 'No'}`);
+  console.log('');
+}
+
+async function runGuiCommand(restArgs) {
+  const portIdx = restArgs.indexOf('--port');
+  const port = portIdx >= 0 ? parseInt(restArgs[portIdx + 1], 10) : 8000;
+  const openBrowser = restArgs.includes('--open');
+
+  console.log(`\n🕌 IMH-Code — Starting GUI Dashboard`);
+  
+  // 1. Verify environment
+  try {
+    execSync('php -v', { stdio: 'ignore' });
+  } catch {
+    console.error('❌ Error: PHP is not installed or not in PATH. Laravel GUI requires PHP 8.2+.');
+    process.exit(1);
+  }
+
+  try {
+    execSync('composer --version', { stdio: 'ignore' });
+  } catch {
+    console.error('❌ Error: Composer is not installed or not in PATH. Laravel GUI requires Composer.');
+    process.exit(1);
+  }
+
+  const guiPath = path.join(GLOBAL_DIR, 'gui');
+  
+  // 2. Setup/Scaffold if not present
+  if (!fs.existsSync(guiPath)) {
+    console.log(`⏳ Laravel Control Center not installed. Scaffolding in: ${guiPath}`);
+    console.log(`   (This may take a minute...)`);
+    try {
+      execSync(`composer create-project laravel/laravel "${guiPath}" --prefer-dist --no-interaction`, { stdio: 'inherit' });
+      console.log('✅ Laravel framework scaffolded.');
+    } catch (e) {
+      console.error('❌ Scaffolding failed:', e.message);
+      process.exit(1);
+    }
+  }
+
+  // 3. Inject customized views, routes, models, migrations and controllers
+  setupLaravelGui(guiPath);
+
+  // 4. Serve
+  console.log(`\n🚀 Starting Laravel server on http://localhost:${port}`);
+  if (openBrowser) {
+    setTimeout(() => {
+      try {
+        const cmd = process.platform === 'win32' ? 'start' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+        execSync(`${cmd} http://localhost:${port}`);
+      } catch {}
+    }, 2000);
+  }
+
+  try {
+    execSync(`php artisan serve --port=${port}`, { cwd: guiPath, stdio: 'inherit' });
+  } catch (err) {
+    console.error('❌ Server execution failed:', err.message);
+    process.exit(1);
+  }
+}
+
+function setupLaravelGui(guiPath) {
+  // Write custom config database.sqlite
+  const dbDir = path.join(guiPath, 'database');
+  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+  const dbFile = path.join(dbDir, 'database.sqlite');
+  if (!fs.existsSync(dbFile)) {
+    fs.writeFileSync(dbFile, '');
+  }
+
+  // Edit .env for SQLite
+  const envPath = path.join(guiPath, '.env');
+  if (fs.existsSync(envPath)) {
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    // Remove default DB settings
+    envContent = envContent.replace(/DB_CONNECTION=\w+/g, 'DB_CONNECTION=sqlite');
+    envContent = envContent.replace(/DB_HOST=[^\n]+/g, '');
+    envContent = envContent.replace(/DB_PORT=[^\n]+/g, '');
+    envContent = envContent.replace(/DB_DATABASE=[^\n]+/g, '');
+    envContent = envContent.replace(/DB_USERNAME=[^\n]+/g, '');
+    envContent = envContent.replace(/DB_PASSWORD=[^\n]+/g, '');
+    fs.writeFileSync(envPath, envContent, 'utf8');
+  }
+
+  // Generate Model: Project.php
+  const modelDir = path.join(guiPath, 'app', 'Models');
+  if (!fs.existsSync(modelDir)) fs.mkdirSync(modelDir, { recursive: true });
+  const modelContent = `<?php
+namespace App\\Models;
+use Illuminate\\Database\\Eloquent\\Model;
+class Project extends Model {
+    protected $fillable = ['name', 'path', 'frontend_stack', 'backend_stack', 'database'];
+}
+`;
+  fs.writeFileSync(path.join(modelDir, 'Project.php'), modelContent, 'utf8');
+
+  // Generate Controller: DashboardController.php
+  const controllerDir = path.join(guiPath, 'app', 'Http', 'Controllers');
+  if (!fs.existsSync(controllerDir)) fs.mkdirSync(controllerDir, { recursive: true });
+  const controllerContent = `<?php
+namespace App\\Http\\Controllers;
+
+use Illuminate\\Http\\Request;
+use Illuminate\\Support\Facades\\Process;
+use Illuminate\\Support\\Facades\\DB;
+
+class DashboardController extends Controller {
+    public function index() {
+        $projects = DB::table('projects')->get();
+        return view('dashboard', compact('projects'));
+    }
+
+    public function create(Request $request) {
+        $name = $request->input('name');
+        $path = $request->input('path');
+        
+        DB::table('projects')->insert([
+            'name' => $name,
+            'path' => $path,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Run imhcode init
+        Process::path($path)->run('imhcode');
+
+        return redirect()->route('dashboard');
+    }
+
+    public function show($id) {
+        $project = DB::table('projects')->where('id', $id)->first();
+        if (!$project) abort(404);
+
+        // Scan folder for sprints
+        $sprints = [];
+        $docsPath = $project->path . '/docs';
+        if (is_dir($docsPath)) {
+            $files = scandir($docsPath);
+            foreach ($files as $file) {
+                if (preg_match('/^sprint-(\\d+)$/', $file, $matches)) {
+                    $sprints[] = [
+                        'num' => $matches[1],
+                        'name' => 'Sprint ' . $matches[1],
+                    ];
+                }
+            }
+        }
+
+        // Get logs
+        $logs = [];
+        $sessionsPath = $project->path . '/.imhcode/sessions';
+        if (is_dir($sessionsPath)) {
+            $files = array_diff(scandir($sessionsPath), ['.', '..']);
+            foreach ($files as $file) {
+                $logs[] = $file;
+            }
+        }
+
+        return view('project', compact('project', 'sprints', 'logs'));
+    }
+
+    public function execute($id, Request $request) {
+        $project = DB::table('projects')->where('id', $id)->first();
+        $sprint = $request->input('sprint');
+        
+        $result = Process::path($project->path)
+            ->timeout(600)
+            ->run("imhcode execute {$sprint}");
+
+        return back()->with('output', $result->output());
+    }
+
+    public function modify($id, Request $request) {
+        $project = DB::table('projects')->where('id', $id)->first();
+        $desc = $request->input('description');
+        
+        $result = Process::path($project->path)
+            ->timeout(600)
+            ->run("imhcode modify \\"{$desc}\\" --live");
+
+        return back()->with('output', $result->output());
+    }
+}
+`;
+  fs.writeFileSync(path.join(controllerDir, 'DashboardController.php'), controllerContent, 'utf8');
+
+  // Generate web.php routes
+  const routesDir = path.join(guiPath, 'routes');
+  if (!fs.existsSync(routesDir)) fs.mkdirSync(routesDir, { recursive: true });
+  const routesContent = `<?php
+use Illuminate\\Support\\Facades\\Route;
+use App\\Http\\Controllers\\DashboardController;
+
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+Route::post('/project/create', [DashboardController::class, 'create'])->name('project.create');
+Route::get('/project/{id}', [DashboardController::class, 'show'])->name('project.show');
+Route::post('/project/{id}/execute', [DashboardController::class, 'execute'])->name('project.execute');
+Route::post('/project/{id}/modify', [DashboardController::class, 'modify'])->name('project.modify');
+`;
+  fs.writeFileSync(path.join(routesDir, 'web.php'), routesContent, 'utf8');
+
+  // Generate Migration: create_projects_table
+  const migrationsDir = path.join(guiPath, 'database', 'migrations');
+  if (!fs.existsSync(migrationsDir)) fs.mkdirSync(migrationsDir, { recursive: true });
+  const migrationContent = `<?php
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\Schema;
+
+return new class extends Migration {
+    public function up() {
+        if (!Schema::hasTable('projects')) {
+            Schema::create('projects', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('path');
+                $table->string('frontend_stack')->nullable();
+                $table->string('backend_stack')->nullable();
+                $table->string('database')->nullable();
+                $table->timestamps();
+            });
+        }
+    }
+    public function down() {
+        Schema::dropIfExists('projects');
+    }
+};
+`;
+  fs.writeFileSync(path.join(migrationsDir, '2026_07_05_000000_create_imhcode_projects_table.php'), migrationContent, 'utf8');
+
+  // Generate Views
+  const viewsDir = path.join(guiPath, 'resources', 'views');
+  if (!fs.existsSync(viewsDir)) fs.mkdirSync(viewsDir, { recursive: true });
+
+  const dashboardView = `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMH-Code Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            50: '#f8fafc',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark-950 text-slate-200 min-h-screen font-sans">
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark-900 border-r border-slate-800 min-h-screen p-6">
+            <div class="flex items-center gap-3 mb-8">
+                <span class="text-2xl">🕌</span>
+                <h1 class="text-xl font-bold tracking-tight text-white">IMH-Code</h1>
+            </div>
+            <nav class="space-y-2">
+                <a href="/" class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-indigo-600/10 text-indigo-400 font-medium">
+                    Dashboard
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-10">
+            <header class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-3xl font-bold text-white tracking-tight">Control Center</h2>
+                    <p class="text-slate-400 mt-1">Manage and orchestrate multi-agent coding harnesses.</p>
+                </div>
+            </header>
+
+            @if(session('output'))
+                <div class="mb-8 p-6 bg-slate-900 border border-slate-800 rounded-xl">
+                    <h3 class="text-lg font-semibold text-white mb-3">Execution Console Output</h3>
+                    <pre class="font-mono text-sm bg-black/50 p-4 rounded-lg overflow-x-auto text-green-400 max-h-96">{{ session('output') }}</pre>
+                </div>
+            @endif
+
+            <!-- Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Project List -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-xl font-semibold text-white mb-6">Your Projects</h3>
+                    @if($projects->isEmpty())
+                        <div class="text-center py-12 text-slate-500">
+                            <p>No projects imported yet.</p>
+                        </div>
+                    @else
+                        <div class="space-y-4">
+                            @foreach($projects as $p)
+                                <div class="p-4 bg-slate-950/40 border border-slate-800/80 rounded-xl flex justify-between items-center hover:border-slate-700 transition">
+                                    <div>
+                                        <h4 class="font-medium text-white">{{ $p->name }}</h4>
+                                        <p class="text-xs text-slate-500 mt-1">{{ $p->path }}</p>
+                                    </div>
+                                    <a href="/project/{{ $p->id }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition">
+                                        Open
+                                    </a>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Create/Import Form -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-2">Import Project</h3>
+                        <p class="text-sm text-slate-400">Initialize or import an existing project directory.</p>
+                    </div>
+                    <form action="/project/create" method="POST" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Project Name</label>
+                            <input type="text" name="name" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Local Path</label>
+                            <input type="text" name="path" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200" placeholder="/path/to/project">
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg text-sm transition">
+                            Initialize & Open
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+`;
+  fs.writeFileSync(path.join(viewsDir, 'dashboard.blade.php'), dashboardView, 'utf8');
+
+  const projectView = `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project: {{ $project->name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            50: '#f8fafc',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-dark-950 text-slate-200 min-h-screen font-sans">
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark-900 border-r border-slate-800 min-h-screen p-6">
+            <div class="flex items-center gap-3 mb-8">
+                <span class="text-2xl">🕌</span>
+                <h1 class="text-xl font-bold tracking-tight text-white">IMH-Code</h1>
+            </div>
+            <nav class="space-y-2">
+                <a href="/" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 font-medium hover:bg-slate-800">
+                    Dashboard
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-10">
+            <header class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-3xl font-bold text-white tracking-tight">{{ $project->name }}</h2>
+                    <p class="text-slate-400 mt-1">{{ $project->path }}</p>
+                </div>
+            </header>
+
+            @if(session('output'))
+                <div class="mb-8 p-6 bg-slate-900 border border-slate-800 rounded-xl">
+                    <h3 class="text-lg font-semibold text-white mb-3">Execution Console Output</h3>
+                    <pre class="font-mono text-sm bg-black/50 p-4 rounded-lg overflow-x-auto text-green-400 max-h-96">{{ session('output') }}</pre>
+                </div>
+            @endif
+
+            <!-- Action Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Sprints Kanban / Executor -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 space-y-6">
+                    <h3 class="text-xl font-semibold text-white">Sprints and Execution</h3>
+                    @if(empty($sprints))
+                        <div class="text-center py-12 text-slate-500">
+                            <p>No active sprints detected. Use the CLI or modification panel to start development.</p>
+                        </div>
+                    @else
+                        <div class="space-y-4">
+                            @foreach($sprints as $s)
+                                <div class="p-4 bg-slate-950/40 border border-slate-800 rounded-xl flex justify-between items-center">
+                                    <div>
+                                        <h4 class="font-semibold text-white">{{ $s['name'] }}</h4>
+                                    </div>
+                                    <form action="/project/{{ $project->id }}/execute" method="POST">
+                                        @csrf
+                                        <input type="hidden" name="sprint" value="{{ $s['num'] }}">
+                                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition">
+                                            Run Sprint
+                                        </button>
+                                    </form>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Quick Modification Panel -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+                    <div>
+                        <h3 class="text-xl font-semibold text-white mb-2">Modify Project</h3>
+                        <p class="text-sm text-slate-400">Targeted, in-place codebase modifications.</p>
+                    </div>
+                    <form action="/project/{{ $project->id }}/modify" method="POST" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Describe Change</label>
+                            <textarea name="description" required rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200" placeholder="e.g. Add a logout button to the navbar..."></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-sm transition">
+                            Apply Modification
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
+`;
+  fs.writeFileSync(path.join(viewsDir, 'project.blade.php'), projectView, 'utf8');
+
+  // Trigger migration
+  try {
+    execSync('php artisan migrate --force', { cwd: guiPath, stdio: 'ignore' });
+  } catch (e) {
+    // Suppress if DB is locked or already migrated
+  }
+}
+
