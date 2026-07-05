@@ -41,7 +41,7 @@ imhcode feature "description"                       # Plan a targeted 1-3 task m
 imhcode execute-feature [N]                         # Run planned feature sprint N
 imhcode scan [path]                                 # Deep scan layout and framework stack
 imhcode import [path]                               # Import existing project and generate context
-imhcode gui [--port N]                              # Boot the Laravel web control panel (localhost:8000)
+imhcode gui                                         # Launch interactive terminal TUI control center
 ```
 
 ---

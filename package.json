@@ -1,6 +1,6 @@
 {
   "name": "imhcode",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "IMH-Code — Imam Hussain Coding Harness Platform. A fast-first multi-agent AI coding framework with intelligent model routing. 19 generic role-based agents (planner, nextjs-executor, laravel-executor, etc.), configurable testing strategy, and 7 token-saving optimizations for rapid MVP development.",
   "main": "index.js",
   "bin": {

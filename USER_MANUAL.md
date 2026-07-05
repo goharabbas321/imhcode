@@ -63,7 +63,7 @@ imhcode execute-feature [N]  # Execute planned feature sprint N
 imhcode fix "bug desc"       # Targeted bug fix (alias for modify)
 imhcode scan [path]          # Scan local stack and project configuration
 imhcode import [path]        # Import existing codebase and generate context
-imhcode gui [--port N]       # Start the Laravel GUI Control Center web server
+imhcode gui                  # Start the interactive terminal control center (TUI)
 ```
 
 ---
@@ -92,8 +92,9 @@ Instead of starting greenfield projects, you can modify existing code bases in-p
 - Run `imhcode modify "Add a contact form to the page"` to auto-detect the best agent, compile a dynamic context-aware prompt, and run in-place code edits.
 - Run `imhcode feature "Add Stripe checkout"` to plan a targeted mini-sprint of 1-3 tasks for a new feature addition. Run `imhcode execute-feature {N}` to execute.
 
-## 7. Laravel GUI Control Center
+## 7. Interactive Terminal Control Center (TUI)
 
-Run `imhcode gui` to launch a beautiful dark-mode web console (Laravel 12 + Livewire 3 + Tailwind CSS v4) to manage your projects, sprints, and code modifications via a simple graphical user interface.
-- Scaffolded automatically under `~/.imhcode/gui/`.
-- Manage projects, visual kanbans, trigger executes, and run quick modifications directly from the web browser.
+Run `imhcode` (or `imhcode gui`) to launch a beautiful, interactive terminal user interface (TUI) to manage your projects, sprints, and code modifications via a simple console-based dashboard.
+- Navigate the full 6-phase pipeline using arrow keys and keyboard shortcuts.
+- Guided wizard detects your project status and highlights recommended actions automatically.
+- Easily edit project requirements inline or via your preferred local editor, run plans, trigger task executions, and manage role-based agents in one unified terminal interface.

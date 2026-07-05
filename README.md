@@ -51,11 +51,11 @@ IMH-Code enforces a fast-first software delivery pipeline:
 
 ## 🛠️ Usability Upgrades (v2.0)
 
-Version 2.0 introduces powerful new commands for codebase scanning, project imports, in-place changes, and graphical control:
+Version 2.0 introduces powerful new commands for codebase scanning, project imports, in-place changes, and interactive control:
 - **Scan & Import**: Run `imhcode scan` or `imhcode import` to bring existing projects (Next.js, Laravel, React, etc.) under orchestration. Maps project folders to `.imhcode/import-map.json` automatically.
 - **In-place Modifications**: Run `imhcode modify "task"` to auto-detect the target agent and run in-place code adjustments.
 - **Feature Sprint Planning**: Run `imhcode feature "desc"` to plan a targeted 1-3 task mini-sprint for adding a new feature.
-- **Laravel GUI Dashboard**: Run `imhcode gui` to launch a beautiful dark-mode control center web application (Laravel 12 + Livewire 3 + Tailwind CSS v4) to manage your projects, visual Kanbans, and modifications directly from the web browser.
+- **Interactive Terminal TUI**: Run `imhcode` (or `imhcode gui`) to launch a beautiful, interactive terminal user interface (TUI) to manage your projects, sprints, and code modifications via a simple console-based dashboard.
 
 ---
 

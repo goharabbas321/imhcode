@@ -3006,503 +3006,700 @@ async function runScanCommand(restArgs) {
   console.log('');
 }
 
-async function runGuiCommand(restArgs) {
-  const portIdx = restArgs.indexOf('--port');
-  const port = portIdx >= 0 ? parseInt(restArgs[portIdx + 1], 10) : 8000;
-  const openBrowser = restArgs.includes('--open');
-
-  console.log(`\n🕌 IMH-Code — Starting GUI Dashboard`);
+async function runTuiCommand() {
+  const cwd = process.cwd();
   
-  // 1. Verify environment
-  try {
-    execSync('php -v', { stdio: 'ignore' });
-  } catch {
-    console.error('❌ Error: PHP is not installed or not in PATH. Laravel GUI requires PHP 8.2+.');
-    process.exit(1);
+  // Terminal UI control variables
+  let selectedIndex = 0;
+  let menuItems = [];
+  let inSubMode = false;
+  let currentSubMenu = 'main'; // 'main' or 'agents'
+  
+  // Colors & formatting helper
+  const ANSI = {
+    reset: '\x1b[0m',
+    bold: '\x1b[1m',
+    dim: '\x1b[2m',
+    italic: '\x1b[3m',
+    red: '\x1b[31m',
+    green: '\x1b[32m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    magenta: '\x1b[35m',
+    cyan: '\x1b[36m',
+    white: '\x1b[37m',
+    clearScreen: '\x1b[2J\x1b[H',
+    hideCursor: '\x1b[?25l',
+    showCursor: '\x1b[?25h'
+  };
+
+  function buildMenuItems() {
+    const state = detectProjectState(cwd);
+    
+    if (currentSubMenu === 'agents') {
+      const agentItems = [
+        { id: 'agent_list',    name: 'List Agents',     desc: 'List all 19 role-based agents' },
+        { id: 'agent_inspect', name: 'Inspect Agent',    desc: 'Show agent configuration and skills' },
+        { id: 'agent_run',     name: 'Run Agent',        desc: 'Execute a single agent manually' },
+        { id: 'back',          name: '← Back to Main',   desc: 'Return to the main control center' }
+      ];
+      return agentItems;
+    }
+    
+    const items = [];
+    
+    // Step 1: Init
+    if (!state.hasConfig) {
+      items.push({ id: 'init', name: 'Initialize Project', desc: '⚠️ Setup engines & config (Required)', highlight: true });
+    } else {
+      items.push({ id: 'init', name: 'Reinitialize Project', desc: 'Scan engines & reconfigure model routing' });
+    }
+
+    // Step 2: Requirements
+    if (state.hasConfig && !state.hasStart) {
+      items.push({ id: 'write', name: 'Write Requirements', desc: '⚠️ Edit docs/start.md (Required)', highlight: true });
+    } else if (state.hasConfig) {
+      items.push({ id: 'write', name: 'Write Requirements', desc: 'Edit docs/start.md requirements' });
+    }
+
+    // Step 3: Plan & Brainstorm
+    if (state.hasStart && !state.hasBrainstorm) {
+      items.push({ id: 'plan', name: 'Plan (Generate Brainstorm)', desc: '👉 Generate docs/brainstorming.md', highlight: true });
+    } else if (state.hasBrainstorm && !state.hasSprints) {
+      items.push({ id: 'plan', name: 'Plan (Generate Sprints)', desc: '👉 Generate sprint folders & tasks', highlight: true });
+    } else if (state.hasSprints) {
+      items.push({ id: 'plan', name: 'Re-Plan Project', desc: 'Regenerate sprint plans (deletes current plans)' });
+    }
+
+    // Step 4: Execution
+    if (state.hasSprints) {
+      items.push({ id: 'execute', name: `Execute Sprint ${state.currentSprint}`, desc: '👉 Run planned tasks for active sprint', highlight: true });
+    }
+
+    // Step 5: Test
+    if (state.hasSprints) {
+      items.push({ id: 'test', name: 'Run E2E & Audits', desc: 'Execute final testing/security/SEO sprint' });
+    }
+
+    // Step 6: Codebase Upgrades & Modifications
+    items.push({ id: 'modify', name: 'Modify Code In-Place', desc: 'Run quick, direct codebase modification' });
+    items.push({ id: 'feature', name: 'Add New Feature', desc: 'Plan a mini-sprint for a new feature' });
+    
+    // Step 7: Scanners & Imports
+    items.push({ id: 'scan', name: 'Scan Project Stack', desc: 'Analyze tech stack in current/target directory' });
+    items.push({ id: 'import', name: 'Import Existing Codebase', desc: 'Import external project folder' });
+    
+    // Step 8: Agents Manager
+    items.push({ id: 'agents_menu', name: 'Agent Manager →', desc: 'Inspect or run generic role-based agents' });
+
+    // Step 9: Help & Exit
+    items.push({ id: 'commands', name: '/commands Reference', desc: 'Show formatted table of CLI commands' });
+    items.push({ id: 'exit', name: 'Exit TUI', desc: 'Quit interactive control center' });
+
+    return items;
   }
 
-  try {
-    execSync('composer --version', { stdio: 'ignore' });
-  } catch {
-    console.error('❌ Error: Composer is not installed or not in PATH. Laravel GUI requires Composer.');
-    process.exit(1);
+  function detectProjectState(dir) {
+    const hasConfig = fs.existsSync(path.join(dir, CONFIG_FILE));
+    const hasStart = fs.existsSync(path.join(dir, START_MD));
+    const hasBrainstorm = fs.existsSync(path.join(dir, BRAINSTORM_MD));
+    const hasSprints = detectSprintDocs(dir);
+    
+    let currentSprint = 1;
+    if (hasSprints) {
+      currentSprint = detectCurrentSprint(dir);
+    }
+
+    return {
+      hasConfig,
+      hasStart,
+      hasBrainstorm,
+      hasSprints,
+      currentSprint
+    };
   }
 
-  const guiPath = path.join(GLOBAL_DIR, 'gui');
-  
-  // 2. Setup/Scaffold if not present
-  if (!fs.existsSync(guiPath)) {
-    console.log(`⏳ Laravel Control Center not installed. Scaffolding in: ${guiPath}`);
-    console.log(`   (This may take a minute...)`);
+  function getProjectStatus(state) {
+    if (!state.hasConfig) return `${ANSI.red}● Uninitialized (Run Initialize Project)${ANSI.reset}`;
+    if (!state.hasStart) return `${ANSI.yellow}● Missing docs/start.md (Run Write Requirements)${ANSI.reset}`;
+    if (!state.hasBrainstorm) return `${ANSI.cyan}● Brainstorming Ready (Run Plan)${ANSI.reset}`;
+    if (!state.hasSprints) return `${ANSI.cyan}● Sprint Planning Ready (Run Plan)${ANSI.reset}`;
+    return `${ANSI.green}● Sprint ${state.currentSprint} Active${ANSI.reset}`;
+  }
+
+  function getEngineConfig() {
     try {
-      execSync(`composer create-project laravel/laravel "${guiPath}" --prefer-dist --no-interaction`, { stdio: 'inherit' });
-      console.log('✅ Laravel framework scaffolded.');
-    } catch (e) {
-      console.error('❌ Scaffolding failed:', e.message);
-      process.exit(1);
+      const config = loadLocalConfig(cwd);
+      if (config && config.primary_engine) {
+        return `${config.primary_engine} (${config.default_model || 'auto'})`;
+      }
+    } catch {}
+    return 'None';
+  }
+
+  function renderMenu() {
+    menuItems = buildMenuItems();
+    // Clamp selection index
+    if (selectedIndex >= menuItems.length) {
+      selectedIndex = Math.max(0, menuItems.length - 1);
     }
+    
+    const state = detectProjectState(cwd);
+    const projectName = path.basename(cwd);
+    const statusStr = getProjectStatus(state);
+    const engineStr = getEngineConfig();
+
+    process.stdout.write(ANSI.clearScreen);
+    process.stdout.write(ANSI.hideCursor);
+
+    const width = 76;
+    
+    // Header Banner
+    console.log(ANSI.cyan + `  ┌${'─'.repeat(width - 4)}┐` + ANSI.reset);
+    console.log(ANSI.cyan + `  │` + ANSI.bold + centerText(`${PLATFORM_NAME} Control Center`, width - 4) + ANSI.cyan + `│` + ANSI.reset);
+    console.log(ANSI.cyan + `  │` + ANSI.dim + centerText(PLATFORM_FULL, width - 4) + ANSI.cyan + `│` + ANSI.reset);
+    console.log(ANSI.cyan + `  ├${'─'.repeat(width - 4)}┤` + ANSI.reset);
+    
+    // Project Info
+    const infoLeft = ` Project: ${projectName}`;
+    const infoRight = `Path: ${cwd.length > 35 ? '...' + cwd.slice(-32) : cwd} `;
+    const paddingInfo = width - 4 - infoLeft.length - infoRight.length;
+    console.log(ANSI.cyan + `  │` + ANSI.reset + ANSI.bold + infoLeft + ' '.repeat(paddingInfo) + ANSI.dim + infoRight + ANSI.cyan + `│` + ANSI.reset);
+    
+    const statusLine = ` Status:  ${statusStr}`;
+    const engineLine = `Engine: ${engineStr} `;
+    const statusClean = statusLine.replace(/\x1b\[[0-9;]*m/g, '');
+    const engineClean = engineLine.replace(/\x1b\[[0-9;]*m/g, '');
+    const paddingStatus = width - 4 - statusClean.length - engineClean.length;
+    console.log(ANSI.cyan + `  │` + ANSI.reset + statusLine + ' '.repeat(paddingStatus) + ANSI.dim + engineLine + ANSI.cyan + `│` + ANSI.reset);
+    
+    console.log(ANSI.cyan + `  ├${'─'.repeat(width - 4)}┤` + ANSI.reset);
+
+    // Menu Items
+    menuItems.forEach((item, index) => {
+      const isSelected = index === selectedIndex;
+      const numStr = ` [${index + 1}] `;
+      const nameStr = item.name;
+      
+      let lineText = '';
+      if (isSelected) {
+        lineText = `${ANSI.bold}${ANSI.cyan}▸${ANSI.reset}${ANSI.bold}${numStr}${nameStr}${ANSI.reset}`;
+      } else {
+        lineText = `  ${numStr}${nameStr}`;
+      }
+
+      // Add highlight if item is next action recommended
+      if (item.highlight && !isSelected) {
+        lineText = `${ANSI.yellow}${lineText}${ANSI.reset}`;
+      }
+
+      const cleanLine = lineText.replace(/\x1b\[[0-9;]*m/g, '');
+      const padding = 34 - cleanLine.length;
+      
+      let descPart = '';
+      if (item.desc) {
+        descPart = `${ANSI.dim} ${item.desc}${ANSI.reset}`;
+      }
+      
+      const cleanDesc = descPart.replace(/\x1b\[[0-9;]*m/g, '');
+      const lineEndPadding = width - 4 - cleanLine.length - Math.max(0, padding) - cleanDesc.length;
+
+      console.log(
+        ANSI.cyan + `  │ ` + ANSI.reset + 
+        lineText + ' '.repeat(Math.max(0, padding)) + 
+        descPart + ' '.repeat(Math.max(0, lineEndPadding - 1)) + 
+        ANSI.cyan + `│` + ANSI.reset
+      );
+    });
+
+    console.log(ANSI.cyan + `  └${'─'.repeat(width - 4)}┘` + ANSI.reset);
+    console.log(ANSI.dim + `   ↑↓ Navigate   ⏎ Select   [1-${menuItems.length}] Shortcut   q Quit` + ANSI.reset);
   }
 
-  // 3. Inject customized views, routes, models, migrations and controllers
-  setupLaravelGui(guiPath);
-
-  // 3b. Automatically register the folder from which imhcode gui was executed
-  const currentPath = process.cwd();
-  const folderName = path.basename(currentPath);
-  try {
-    const escapedPath = currentPath.replace(/\\/g, '\\\\');
-    execSync(`php artisan imhcode:register "${folderName}" "${escapedPath}"`, { cwd: guiPath, stdio: 'ignore' });
-    console.log(`✅ Automatically registered project "${folderName}" (${currentPath})`);
-  } catch (e) {
-    // Suppress errors if database is not migrated yet or locked
+  function centerText(text, width) {
+    const cleanText = text.replace(/\x1b\[[0-9;]*m/g, '');
+    const padding = Math.max(0, Math.floor((width - cleanText.length) / 2));
+    return ' '.repeat(padding) + text + ' '.repeat(width - cleanText.length - padding);
   }
 
-  // 4. Serve
-  console.log(`\n🚀 Starting Laravel server on http://localhost:${port}`);
-  if (openBrowser) {
-    setTimeout(() => {
-      try {
-        const cmd = process.platform === 'win32' ? 'start' : process.platform === 'darwin' ? 'open' : 'xdg-open';
-        execSync(`${cmd} http://localhost:${port}`);
-      } catch {}
-    }, 2000);
+  // Set up standard input listener
+  const isRaw = process.stdin.isTTY;
+  if (isRaw) {
+    process.stdin.setRawMode(true);
   }
+  process.stdin.resume();
+  process.stdin.setEncoding('utf8');
 
-  try {
-    execSync(`php artisan serve --port=${port}`, { cwd: guiPath, stdio: 'inherit' });
-  } catch (err) {
-    console.error('❌ Server execution failed:', err.message);
-    process.exit(1);
-  }
-}
+  renderMenu();
 
-function setupLaravelGui(guiPath) {
-  // Write custom config database.sqlite
-  const dbDir = path.join(guiPath, 'database');
-  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-  const dbFile = path.join(dbDir, 'database.sqlite');
-  if (!fs.existsSync(dbFile)) {
-    fs.writeFileSync(dbFile, '');
-  }
+  const handleKeypress = async (key) => {
+    if (inSubMode) return;
 
-  // Edit .env for SQLite
-  const envPath = path.join(guiPath, '.env');
-  if (fs.existsSync(envPath)) {
-    let envContent = fs.readFileSync(envPath, 'utf8');
-    // Remove default DB settings
-    envContent = envContent.replace(/DB_CONNECTION=\w+/g, 'DB_CONNECTION=sqlite');
-    envContent = envContent.replace(/DB_HOST=[^\n]+/g, '');
-    envContent = envContent.replace(/DB_PORT=[^\n]+/g, '');
-    envContent = envContent.replace(/DB_DATABASE=[^\n]+/g, '');
-    envContent = envContent.replace(/DB_USERNAME=[^\n]+/g, '');
-    envContent = envContent.replace(/DB_PASSWORD=[^\n]+/g, '');
-    fs.writeFileSync(envPath, envContent, 'utf8');
-  }
-
-  // Generate Model: Project.php
-  const modelDir = path.join(guiPath, 'app', 'Models');
-  if (!fs.existsSync(modelDir)) fs.mkdirSync(modelDir, { recursive: true });
-  const modelContent = `<?php
-namespace App\\Models;
-use Illuminate\\Database\\Eloquent\\Model;
-class Project extends Model {
-    protected $fillable = ['name', 'path', 'frontend_stack', 'backend_stack', 'database'];
-}
-`;
-  fs.writeFileSync(path.join(modelDir, 'Project.php'), modelContent, 'utf8');
-
-  // Generate Controller: DashboardController.php
-  const controllerDir = path.join(guiPath, 'app', 'Http', 'Controllers');
-  if (!fs.existsSync(controllerDir)) fs.mkdirSync(controllerDir, { recursive: true });
-  const controllerContent = `<?php
-namespace App\\Http\\Controllers;
-
-use Illuminate\\Http\\Request;
-use Illuminate\\Support\\Facades\\Process;
-use Illuminate\\Support\\Facades\\DB;
-
-class DashboardController extends Controller {
-    public function index() {
-        $projects = DB::table('projects')->get();
-        return view('dashboard', compact('projects'));
+    // Graceful exit keys
+    if (key === '\u0003' || key === 'q' || key === 'Q') {
+      cleanupAndExit();
+      return;
     }
 
-    public function create(Request $request) {
-        $name = $request->input('name');
-        $path = $request->input('path');
+    if (key === '\u001b[A') {
+      // Up arrow
+      selectedIndex = (selectedIndex - 1 + menuItems.length) % menuItems.length;
+      renderMenu();
+    } else if (key === '\u001b[B') {
+      // Down arrow
+      selectedIndex = (selectedIndex + 1) % menuItems.length;
+      renderMenu();
+    } else if (key === '\r' || key === '\n') {
+      // Enter key
+      await handleAction(menuItems[selectedIndex]);
+    } else {
+      // Direct number shortcuts
+      const code = key.charCodeAt(0);
+      if (code >= 49 && code <= 57) { // '1'-'9'
+        const index = code - 49;
+        if (index < menuItems.length) {
+          selectedIndex = index;
+          renderMenu();
+          await handleAction(menuItems[index]);
+        }
+      } else if (key === '0') {
+        const index = 9; // '0' is 10th item
+        if (index < menuItems.length) {
+          selectedIndex = index;
+          renderMenu();
+          await handleAction(menuItems[index]);
+        }
+      }
+    }
+  };
+
+  process.stdin.on('data', handleKeypress);
+
+  function cleanupAndExit() {
+    if (isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.pause();
+    process.stdout.write(ANSI.showCursor);
+    console.log('\n🕌 Thank you for using IMH-Code. Goodbye!\n');
+    process.exit(0);
+  }
+
+  async function pauseAndResume() {
+    inSubMode = true;
+    if (isRaw) {
+      process.stdin.setRawMode(false);
+    }
+    process.stdin.pause();
+    process.stdout.write(ANSI.showCursor + '\n');
+    
+    // Return a promise that resolves when user presses enter
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      rl.question(ANSI.cyan + '\nPress [Enter] to return to the main menu...' + ANSI.reset, () => {
+        rl.close();
+        inSubMode = false;
+        if (isRaw) {
+          process.stdin.setRawMode(true);
+        }
+        process.stdin.resume();
+        renderMenu();
+        resolve();
+      });
+    });
+  }
+
+  async function handleAction(item) {
+    const state = detectProjectState(cwd);
+    
+    switch (item.id) {
+      case 'init':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
         
-        DB::table('projects')->insert([
-            'name' => $name,
-            'path' => $path,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        // Run imhcode init
-        Process::path($path)->run('imhcode');
-
-        return redirect()->route('dashboard');
-    }
-
-    public function show($id) {
-        $project = DB::table('projects')->where('id', $id)->first();
-        if (!$project) abort(404);
-
-        // Scan folder for sprints
-        $sprints = [];
-        $docsPath = $project->path . '/docs';
-        if (is_dir($docsPath)) {
-            $files = scandir($docsPath);
-            foreach ($files as $file) {
-                if (preg_match('/^sprint-(\\d+)$/', $file, $matches)) {
-                    $sprints[] = [
-                        'num' => $matches[1],
-                        'name' => 'Sprint ' . $matches[1],
-                    ];
-                }
-            }
+        try {
+          await runInit();
+        } catch (err) {
+          console.error(`❌ Initialization failed: ${err.message ?? err}`);
         }
-
-        // Get logs
-        $logs = [];
-        $sessionsPath = $project->path . '/.imhcode/sessions';
-        if (is_dir($sessionsPath)) {
-            $files = array_diff(scandir($sessionsPath), ['.', '..']);
-            foreach ($files as $file) {
-                $logs[] = $file;
-            }
-        }
-
-        return view('project', compact('project', 'sprints', 'logs'));
-    }
-
-    public function execute($id, Request $request) {
-        $project = DB::table('projects')->where('id', $id)->first();
-        $sprint = $request->input('sprint');
         
-        $result = Process::path($project->path)
-            ->timeout(600)
-            ->run("imhcode execute {$sprint}");
+        inSubMode = false;
+        if (isRaw) process.stdin.setRawMode(true);
+        process.stdin.resume();
+        renderMenu();
+        break;
 
-        return back()->with('output', $result->output());
-    }
+      case 'write':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
 
-    public function modify($id, Request $request) {
-        $project = DB::table('projects')->where('id', $id)->first();
-        $desc = $request->input('description');
+        // Let user choose how they want to edit
+        console.log('Requirements Editor Options:');
+        console.log('  [1] Open docs/start.md in default terminal editor (nano, vi, notepad)');
+        console.log('  [2] Open docs/start.md in VS Code (code)');
+        console.log('  [3] Edit project description directly in terminal');
         
-        $result = Process::path($project->path)
-            ->timeout(600)
-            ->run("imhcode modify \\"{$desc}\\" --live");
+        const rlEdit = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const choice = await new Promise(res => rlEdit.question('\nSelect option [1-3] (default: 1): ', res));
+        rlEdit.close();
 
-        return back()->with('output', $result->output());
-    }
-}
-`;
-  fs.writeFileSync(path.join(controllerDir, 'DashboardController.php'), controllerContent, 'utf8');
-
-  // Generate web.php routes
-  const routesDir = path.join(guiPath, 'routes');
-  if (!fs.existsSync(routesDir)) fs.mkdirSync(routesDir, { recursive: true });
-  const routesContent = `<?php
-use Illuminate\\Support\\Facades\\Route;
-use App\\Http\\Controllers\\DashboardController;
-
-Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-Route::post('/project/create', [DashboardController::class, 'create'])->name('project.create');
-Route::get('/project/{id}', [DashboardController::class, 'show'])->name('project.show');
-Route::post('/project/{id}/execute', [DashboardController::class, 'execute'])->name('project.execute');
-Route::post('/project/{id}/modify', [DashboardController::class, 'modify'])->name('project.modify');
-`;
-  fs.writeFileSync(path.join(routesDir, 'web.php'), routesContent, 'utf8');
-
-  // Generate Migration: create_projects_table
-  const migrationsDir = path.join(guiPath, 'database', 'migrations');
-  if (!fs.existsSync(migrationsDir)) fs.mkdirSync(migrationsDir, { recursive: true });
-  const migrationContent = `<?php
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\Schema;
-
-return new class extends Migration {
-    public function up() {
-        if (!Schema::hasTable('projects')) {
-            Schema::create('projects', function (Blueprint $table) {
-                $table->id();
-                $table->string('name');
-                $table->string('path');
-                $table->string('frontend_stack')->nullable();
-                $table->string('backend_stack')->nullable();
-                $table->string('database')->nullable();
-                $table->timestamps();
-            });
-        }
-    }
-    public function down() {
-        Schema::dropIfExists('projects');
-    }
-};
-`;
-  fs.writeFileSync(path.join(migrationsDir, '2026_07_05_000000_create_imhcode_projects_table.php'), migrationContent, 'utf8');
-
-  // Generate Views
-  const viewsDir = path.join(guiPath, 'resources', 'views');
-  if (!fs.existsSync(viewsDir)) fs.mkdirSync(viewsDir, { recursive: true });
-
-  const dashboardView = `<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMH-Code Control Center</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            50: '#f8fafc',
-                            900: '#0f172a',
-                            950: '#020617'
-                        }
-                    }
-                }
+        const startMdPath = path.join(cwd, START_MD);
+        
+        if (choice === '2') {
+          try {
+            execSync(`code "${startMdPath}"`, { stdio: 'inherit' });
+            console.log('📂 Opened docs/start.md in VS Code.');
+          } catch {
+            console.log('⚠️  Failed to launch VS Code ("code" CLI not in path). Fallback to standard editor.');
+            const editor = process.env.EDITOR || (process.platform === 'win32' ? 'notepad' : 'nano');
+            execSync(`${editor} "${startMdPath}"`, { stdio: 'inherit' });
+          }
+        } else if (choice === '3') {
+          console.log('\nEnter your new project description below (press Enter on empty line to finish):\n');
+          const lines = [];
+          const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
+          while (true) {
+            const line = await new Promise(res => rlInput.question('> ', res));
+            if (line.trim() === '') break;
+            lines.push(line);
+          }
+          rlInput.close();
+          
+          if (lines.length > 0) {
+            // Write to docs/start.md within markers
+            let startContent = '';
+            if (fs.existsSync(startMdPath)) {
+              startContent = fs.readFileSync(startMdPath, 'utf8');
             }
-        }
-    </script>
-</head>
-<body class="bg-dark-950 text-slate-200 min-h-screen font-sans">
-    <div class="flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-dark-900 border-r border-slate-800 min-h-screen p-6">
-            <div class="flex items-center gap-3 mb-8">
-                <span class="text-2xl">🕌</span>
-                <h1 class="text-xl font-bold tracking-tight text-white">IMH-Code</h1>
-            </div>
-            <nav class="space-y-2">
-                <a href="/" class="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-indigo-600/10 text-indigo-400 font-medium">
-                    Dashboard
-                </a>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 p-10">
-            <header class="flex justify-between items-center mb-10">
-                <div>
-                    <h2 class="text-3xl font-bold text-white tracking-tight">Control Center</h2>
-                    <p class="text-slate-400 mt-1">Manage and orchestrate multi-agent coding harnesses.</p>
-                </div>
-            </header>
-
-            @if(session('output'))
-                <div class="mb-8 p-6 bg-slate-900 border border-slate-800 rounded-xl">
-                    <h3 class="text-lg font-semibold text-white mb-3">Execution Console Output</h3>
-                    <pre class="font-mono text-sm bg-black/50 p-4 rounded-lg overflow-x-auto text-green-400 max-h-96">{{ session('output') }}</pre>
-                </div>
-            @endif
-
-            <!-- Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Project List -->
-                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6">
-                    <h3 class="text-xl font-semibold text-white mb-6">Your Projects</h3>
-                    @if($projects->isEmpty())
-                        <div class="text-center py-12 text-slate-500">
-                            <p>No projects imported yet.</p>
-                        </div>
-                    @else
-                        <div class="space-y-4">
-                            @foreach($projects as $p)
-                                <div class="p-4 bg-slate-950/40 border border-slate-800/80 rounded-xl flex justify-between items-center hover:border-slate-700 transition">
-                                    <div>
-                                        <h4 class="font-medium text-white">{{ $p->name }}</h4>
-                                        <p class="text-xs text-slate-500 mt-1">{{ $p->path }}</p>
-                                    </div>
-                                    <a href="/project/{{ $p->id }}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition">
-                                        Open
-                                    </a>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-
-                <!-- Create/Import Form -->
-                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 space-y-6">
-                    <div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Import Project</h3>
-                        <p class="text-sm text-slate-400">Initialize or import an existing project directory.</p>
-                    </div>
-                    <form action="/project/create" method="POST" class="space-y-4">
-                        @csrf
-                        <div>
-                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Project Name</label>
-                            <input type="text" name="name" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200">
-                        </div>
-                        <div>
-                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Local Path</label>
-                            <input type="text" name="path" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200" placeholder="/path/to/project">
-                        </div>
-                        <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg text-sm transition">
-                            Initialize & Open
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </main>
-    </div>
-</body>
-</html>
-`;
-  fs.writeFileSync(path.join(viewsDir, 'dashboard.blade.php'), dashboardView, 'utf8');
-
-  const projectView = `<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project: {{ $project->name }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            50: '#f8fafc',
-                            900: '#0f172a',
-                            950: '#020617'
-                        }
-                    }
-                }
+            
+            const desc = lines.join('\n');
+            const markerStart = '<!-- WRITE_PROMPT_HERE -->';
+            const markerEnd = '<!-- END_PROMPT -->';
+            
+            if (startContent.includes(markerStart) && startContent.includes(markerEnd)) {
+              const before = startContent.split(markerStart)[0];
+              const after = startContent.split(markerEnd)[1];
+              const newContent = `${before}${markerStart}\n${desc}\n${markerEnd}${after}`;
+              fs.writeFileSync(startMdPath, newContent, 'utf8');
+            } else {
+              // Write a simple template with markers
+              const newContent = `# 🕌 IMH-Code — Project Start\n\n${markerStart}\n${desc}\n${markerEnd}\n`;
+              fs.writeFileSync(startMdPath, newContent, 'utf8');
             }
+            console.log('✅ Requirements updated successfully in docs/start.md!');
+          }
+        } else {
+          const editor = process.env.EDITOR || (process.platform === 'win32' ? 'notepad' : 'nano');
+          try {
+            execSync(`${editor} "${startMdPath}"`, { stdio: 'inherit' });
+          } catch (err) {
+            console.error(`❌ Failed to launch editor: ${err.message}`);
+          }
         }
-    </script>
-</head>
-<body class="bg-dark-950 text-slate-200 min-h-screen font-sans">
-    <div class="flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-dark-900 border-r border-slate-800 min-h-screen p-6">
-            <div class="flex items-center gap-3 mb-8">
-                <span class="text-2xl">🕌</span>
-                <h1 class="text-xl font-bold tracking-tight text-white">IMH-Code</h1>
-            </div>
-            <nav class="space-y-2">
-                <a href="/" class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 font-medium hover:bg-slate-800">
-                    Dashboard
-                </a>
-            </nav>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="flex-1 p-10">
-            <header class="flex justify-between items-center mb-10">
-                <div>
-                    <h2 class="text-3xl font-bold text-white tracking-tight">{{ $project->name }}</h2>
-                    <p class="text-slate-400 mt-1">{{ $project->path }}</p>
-                </div>
-            </header>
+        inSubMode = false;
+        if (isRaw) process.stdin.setRawMode(true);
+        process.stdin.resume();
+        renderMenu();
+        break;
 
-            @if(session('output'))
-                <div class="mb-8 p-6 bg-slate-900 border border-slate-800 rounded-xl">
-                    <h3 class="text-lg font-semibold text-white mb-3">Execution Console Output</h3>
-                    <pre class="font-mono text-sm bg-black/50 p-4 rounded-lg overflow-x-auto text-green-400 max-h-96">{{ session('output') }}</pre>
-                </div>
-            @endif
+      case 'plan':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        // If sprints already exist, confirm deletion first
+        let proceed = true;
+        if (state.hasSprints) {
+          const rlConfirm = readline.createInterface({ input: process.stdin, output: process.stdout });
+          const confirmAns = await new Promise(res => rlConfirm.question(ANSI.yellow + '⚠️  Sprints already exist. Re-planning will delete docs/brainstorming.md and all planned sprint directories. Proceed? (y/N): ' + ANSI.reset, res));
+          rlConfirm.close();
+          if (confirmAns.toLowerCase() !== 'y') {
+            proceed = false;
+          } else {
+            // Delete brainstorming.md and docs/sprint-*
+            try {
+              if (fs.existsSync(path.join(cwd, BRAINSTORM_MD))) fs.unlinkSync(path.join(cwd, BRAINSTORM_MD));
+              let sNum = 1;
+              while (true) {
+                const sDir = path.join(cwd, DOCS_DIR, `sprint-${sNum}`);
+                if (fs.existsSync(sDir)) {
+                  rmRecursiveSync(sDir);
+                  sNum++;
+                } else {
+                  break;
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️  Could not clean up old plan files: ', e.message);
+            }
+          }
+        }
+        
+        if (proceed) {
+          try {
+            await runPlanCommand([]);
+          } catch (err) {
+            console.error(`❌ Planning failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
 
-            <!-- Action Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Sprints Kanban / Executor -->
-                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 lg:col-span-2 space-y-6">
-                    <h3 class="text-xl font-semibold text-white">Sprints and Execution</h3>
-                    @if(empty($sprints))
-                        <div class="text-center py-12 text-slate-500">
-                            <p>No active sprints detected. Use the CLI or modification panel to start development.</p>
-                        </div>
-                    @else
-                        <div class="space-y-4">
-                            @foreach($sprints as $s)
-                                <div class="p-4 bg-slate-950/40 border border-slate-800 rounded-xl flex justify-between items-center">
-                                    <div>
-                                        <h4 class="font-semibold text-white">{{ $s['name'] }}</h4>
-                                    </div>
-                                    <form action="/project/{{ $project->id }}/execute" method="POST">
-                                        @csrf
-                                        <input type="hidden" name="sprint" value="{{ $s['num'] }}">
-                                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition">
-                                            Run Sprint
-                                        </button>
-                                    </form>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
+      case 'execute':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        try {
+          await runExecuteCommand([state.currentSprint.toString()]);
+        } catch (err) {
+          console.error(`❌ Execution failed: ${err.message ?? err}`);
+        }
+        
+        await pauseAndResume();
+        break;
 
-                <!-- Quick Modification Panel -->
-                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-6 space-y-6">
-                    <div>
-                        <h3 class="text-xl font-semibold text-white mb-2">Modify Project</h3>
-                        <p class="text-sm text-slate-400">Targeted, in-place codebase modifications.</p>
-                    </div>
-                    <form action="/project/{{ $project->id }}/modify" method="POST" class="space-y-4">
-                        @csrf
-                        <div>
-                            <label class="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Describe Change</label>
-                            <textarea name="description" required rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 text-slate-200" placeholder="e.g. Add a logout button to the navbar..."></textarea>
-                        </div>
-                        <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-sm transition">
-                            Apply Modification
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </main>
-    </div>
-</body>
-</html>
-`;
-  fs.writeFileSync(path.join(viewsDir, 'project.blade.php'), projectView, 'utf8');
+      case 'test':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        try {
+          await runTestCommand([]);
+        } catch (err) {
+          console.error(`❌ Testing failed: ${err.message ?? err}`);
+        }
+        
+        await pauseAndResume();
+        break;
 
-  // Generate Command: RegisterProject.php
-  const consoleDir = path.join(guiPath, 'app', 'Console', 'Commands');
-  if (!fs.existsSync(consoleDir)) fs.mkdirSync(consoleDir, { recursive: true });
-  const commandContent = `<?php
-namespace App\\Console\\Commands;
+      case 'modify':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
 
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\DB;
+        const rlMod = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const modDesc = await new Promise(res => rlMod.question('Enter description of the modification: ', res));
+        rlMod.close();
 
-class RegisterProject extends Command {
-    protected $signature = 'imhcode:register {name} {path}';
-    protected $description = 'Register a project in the dashboard';
+        if (modDesc.trim() !== '') {
+          try {
+            await runModifyCommand([modDesc, '--live']);
+          } catch (err) {
+            console.error(`❌ Modification failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
 
-    public function handle() {
-        $name = $this->argument('name');
-        $path = $this->argument('path');
+      case 'feature':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
 
-        DB::table('projects')->updateOrInsert(
-            ['path' => $path],
-            [
-                'name' => $name,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
-        );
+        const rlFeat = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const featDesc = await new Promise(res => rlFeat.question('Enter description of the feature to plan: ', res));
+        rlFeat.close();
+
+        if (featDesc.trim() !== '') {
+          try {
+            await runFeatureCommand([featDesc]);
+          } catch (err) {
+            console.error(`❌ Feature planning failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'scan':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+
+        const rlScan = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const scanPath = await new Promise(res => rlScan.question('Enter directory path to scan (default: .): ', res));
+        rlScan.close();
+
+        try {
+          await runScanCommand([scanPath.trim() || '.']);
+        } catch (err) {
+          console.error(`❌ Scan failed: ${err.message ?? err}`);
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'import':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+
+        const rlImport = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const importPath = await new Promise(res => rlImport.question('Enter directory path to import: ', res));
+        rlImport.close();
+
+        if (importPath.trim() !== '') {
+          try {
+            await runImportCommand([importPath.trim()]);
+          } catch (err) {
+            console.error(`❌ Import failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'agents_menu':
+        currentSubMenu = 'agents';
+        selectedIndex = 0;
+        renderMenu();
+        break;
+
+      case 'agent_list':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        try {
+          await runAgentCommand('list', []);
+        } catch (err) {
+          console.error(`❌ Listing failed: ${err.message ?? err}`);
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'agent_inspect':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        console.log('Available Agents:');
+        console.log('  planner, designer, nextjs-executor, react-executor, vue-executor,');
+        console.log('  laravel-executor, python-executor, java-executor, flutter-executor,');
+        console.log('  react-native-executor, ios-executor, android-executor, systems-executor,');
+        console.log('  web3-executor, devops-executor, tester, security-auditor, seo-optimizer, debugger\n');
+        
+        const rlInspect = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const inspectAgentId = await new Promise(res => rlInspect.question('Enter Agent ID to inspect: ', res));
+        rlInspect.close();
+
+        if (inspectAgentId.trim() !== '') {
+          try {
+            await runAgentCommand('inspect', [inspectAgentId.trim()]);
+          } catch (err) {
+            console.error(`❌ Agent inspection failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'agent_run':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        console.log('Available Agents:');
+        console.log('  planner, designer, nextjs-executor, react-executor, vue-executor,');
+        console.log('  laravel-executor, python-executor, java-executor, flutter-executor,');
+        console.log('  react-native-executor, ios-executor, android-executor, systems-executor,');
+        console.log('  web3-executor, devops-executor, tester, security-auditor, seo-optimizer, debugger\n');
+        
+        const rlRunAgent = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const runAgentId = await new Promise(res => rlRunAgent.question('Enter Agent ID to run: ', res));
+        const runTask = await new Promise(res => rlRunAgent.question('Enter task description: ', res));
+        rlRunAgent.close();
+
+        if (runAgentId.trim() !== '' && runTask.trim() !== '') {
+          try {
+            await runAgentCommand('run', [runAgentId.trim(), runTask.trim(), '--live']);
+          } catch (err) {
+            console.error(`❌ Agent execution failed: ${err.message ?? err}`);
+          }
+        }
+        
+        await pauseAndResume();
+        break;
+
+      case 'back':
+        currentSubMenu = 'main';
+        selectedIndex = 0;
+        renderMenu();
+        break;
+
+      case 'commands':
+        inSubMode = true;
+        if (isRaw) process.stdin.setRawMode(false);
+        process.stdin.pause();
+        process.stdout.write(ANSI.showCursor + '\n');
+        
+        showCommandsTable();
+        
+        await pauseAndResume();
+        break;
+
+      case 'exit':
+        cleanupAndExit();
+        break;
     }
-}
-`;
-  fs.writeFileSync(path.join(consoleDir, 'RegisterProject.php'), commandContent, 'utf8');
+  }
 
-  // Trigger migration
-  try {
-    execSync('php artisan migrate --force', { cwd: guiPath, stdio: 'ignore' });
-  } catch (e) {
-    // Suppress if DB is locked or already migrated
+  function showCommandsTable() {
+    const width = 76;
+    console.log(ANSI.cyan + `  ┌${'─'.repeat(width - 4)}┐` + ANSI.reset);
+    console.log(ANSI.cyan + `  │` + ANSI.bold + centerText(`📖 CLI Commands Reference`, width - 4) + ANSI.cyan + `│` + ANSI.reset);
+    console.log(ANSI.cyan + `  ├${'─'.repeat(20)}┬${'─'.repeat(width - 25)}┤` + ANSI.reset);
+    
+    const cmds = [
+      { cmd: 'imhcode',           desc: 'Launch interactive terminal TUI' },
+      { cmd: 'imhcode init',      desc: 'Non-interactive environment setup' },
+      { cmd: 'imhcode plan',      desc: 'Generate brainstorm or sprint plans' },
+      { cmd: 'imhcode execute N', desc: 'Execute Sprint N tasks' },
+      { cmd: 'imhcode test',      desc: 'Run testing/security/SEO sprint' },
+      { cmd: 'imhcode modify',    desc: 'Modify codebase in-place' },
+      { cmd: 'imhcode feature',   desc: 'Plan a mini-sprint for new feature' },
+      { cmd: 'imhcode fix',       desc: 'Quick targeted bug fix' },
+      { cmd: 'imhcode scan',      desc: 'Scan current folder for frameworks' },
+      { cmd: 'imhcode import',    desc: 'Import existing codebase' },
+      { cmd: 'imhcode agent list',desc: 'List all 19 generic agents' },
+      { cmd: 'imhcode report',    desc: 'Generate final project team report' },
+      { cmd: '--help / -h',       desc: 'Display general help instructions' }
+    ];
+    
+    cmds.forEach(item => {
+      const col1 = `  ${item.cmd}`;
+      const col2 = ` ${item.desc}`;
+      const pad1 = 18 - col1.length;
+      const pad2 = width - 25 - col2.length;
+      console.log(
+        ANSI.cyan + `  │` + ANSI.reset + ANSI.bold + col1 + ' '.repeat(Math.max(0, pad1)) + 
+        ANSI.cyan + `│` + ANSI.reset + col2 + ' '.repeat(Math.max(0, pad2)) + 
+        ANSI.cyan + `│` + ANSI.reset
+      );
+    });
+    
+    console.log(ANSI.cyan + `  └${'─'.repeat(20)}┴${'─'.repeat(width - 25)}┘` + ANSI.reset);
   }
 }
-
