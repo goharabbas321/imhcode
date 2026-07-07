@@ -69,31 +69,43 @@ import type { LoadedAgent, ExecutionOptions, ExecutionResult, FailoverTarget } f
  * Model routing: recommended models per category and engine.
  * Tailored to custom priorities: Mimo/Deepseek, Claude Opus, and Fugu.
  */
-const DEFAULT_MODEL_PREFERENCES: Record<string, { engines: string[]; models: string[] }> = {
-  frontend: {
-    engines: ["mimo", "agy", "opencode"],
-    models: ["mimo-vl-v2.5-pro", "Claude Opus 4.6", "deepseek-v4-flash"],
-  },
-  backend: {
-    engines: ["opencode", "agy", "opencode"],
-    models: ["deepseek-v4-pro", "Claude Opus 4.6", "deepseek-v4-flash"],
-  },
-  planning: {
-    engines: ["agy", "codex-fugu", "opencode"],
-    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
-  },
-  testing: {
-    engines: ["agy", "codex-fugu", "opencode"],
-    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
-  },
-  review: {
-    engines: ["agy", "codex-fugu", "opencode"],
-    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
-  },
-  fast: {
-    engines: ["opencode"],
-    models: ["deepseek-v4-flash"],
-  },
+const DEFAULT_MODEL_PREFERENCES: Record<string, { engine: string; model: string }[]> = {
+  frontend: [
+    { engine: "mimo", model: "mimo-vl-v2.5-pro" },
+    { engine: "opencode", model: "mimo-v2.5-pro" },
+    { engine: "opencode", model: "mimo-v2.5" },
+    { engine: "agy", model: "Claude Opus 4.6" },
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
+  backend: [
+    { engine: "opencode", model: "deepseek-v4-pro" },
+    { engine: "agy", model: "Claude Opus 4.6" },
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
+  planning: [
+    { engine: "claude", model: "claude-opus-4-8" },
+    { engine: "agy", model: "Claude Opus 4.8" },
+    { engine: "codex-fugu", model: "fugu-ultra" },
+    { engine: "codex-fugu", model: "fugu" },
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
+  testing: [
+    { engine: "claude", model: "claude-opus-4-8" },
+    { engine: "agy", model: "Claude Opus 4.8" },
+    { engine: "codex-fugu", model: "fugu-ultra" },
+    { engine: "codex-fugu", model: "fugu" },
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
+  review: [
+    { engine: "claude", model: "claude-opus-4-8" },
+    { engine: "agy", model: "Claude Opus 4.8" },
+    { engine: "codex-fugu", model: "fugu-ultra" },
+    { engine: "codex-fugu", model: "fugu" },
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
+  fast: [
+    { engine: "opencode", model: "deepseek-v4-flash" }
+  ],
 };
 
 // ─── Agent Category Map ───────────────────────────────────────────────────────
@@ -223,9 +235,9 @@ function resolveModelForTask(
   // 2. Find best available model from installed engines using priority ranks
   const prefs = DEFAULT_MODEL_PREFERENCES[effectiveCategory];
   if (prefs && config?.available_engines) {
-    for (let i = 0; i < prefs.engines.length; i++) {
-      const preferredEngine = prefs.engines[i];
-      const preferredModel = prefs.models[i];
+    for (const pref of prefs) {
+      const preferredEngine = pref.engine;
+      const preferredModel = pref.model;
       const engineData = config.available_engines[preferredEngine];
 
       if (engineData?.models?.length > 0) {
@@ -236,8 +248,6 @@ function resolveModelForTask(
         if (exactMatch) {
           return { engine: preferredEngine, model: exactMatch };
         }
-        // Use first available model if it's the only one
-        return { engine: preferredEngine, model: engineData.models[0] };
       }
     }
   }
@@ -323,71 +333,104 @@ export async function runAgent(
   let limitExhausted = false;
 
   // 5. Failover Execution Loop
-  while (currentEngineIndex < failoverQueue.length) {
-    const target = failoverQueue[currentEngineIndex];
-    currentEngine = target.engine;
-    currentModel = target.model;
+  while (true) {
+    while (currentEngineIndex < failoverQueue.length) {
+      const target = failoverQueue[currentEngineIndex];
+      currentEngine = target.engine;
+      currentModel = target.model;
 
-    if (dryRun) {
-      // Dry-run mode: execute only the first engine without hitting a real LLM
-      const adapter = getAdapter(false, currentEngine);
-      cumulativeOutput = await adapter.run(currentPrompt, currentModel);
-      success = true;
+      if (dryRun) {
+        // Dry-run mode: execute only the first engine without hitting a real LLM
+        const adapter = getAdapter(false, currentEngine);
+        cumulativeOutput = await adapter.run(currentPrompt, currentModel);
+        success = true;
+        break;
+      }
+
+      console.log(`\n🤖 [IMH-Code] Attempting execution on engine "${currentEngine}" using model "${currentModel}"...`);
+
+      const adapter = getAdapter(true, currentEngine);
+      let output = "";
+      let error: any = null;
+
+      try {
+        output = await adapter.run(currentPrompt, currentModel);
+      } catch (err: any) {
+        error = err;
+        output = err.message || "";
+      }
+
+      // Check if limits (tokens/quota/rate) were reached
+      const check = detectLimitCondition(output, error);
+
+      if (check.limitReached) {
+        console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" hit a limit: ${check.reason}`);
+        cumulativeOutput += (cumulativeOutput ? "\n" : "") + check.partialOutput;
+
+        currentEngineIndex++;
+        if (currentEngineIndex < failoverQueue.length) {
+          const nextEng = failoverQueue[currentEngineIndex];
+          console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng}"...`);
+
+          // Build failover resume prompt
+          const failoverResumeContext = [
+            `\n# ⚠️ FAILOVER RESUME CONTEXT`,
+            `The previous engine execution (using ${currentEngine} with model ${currentModel}) hit a limit and was interrupted mid-task.`,
+            `Here is the partial output produced by the previous run before it stopped:`,
+            `\n---`,
+            cumulativeOutput.trim(),
+            `---\n`,
+            `Please resume from exactly where the process was interrupted. Review what was already created or modified, and complete the remaining parts of the original task. Do NOT restart the entire task from scratch.`
+          ].join("\n");
+
+          currentPrompt = finalPrompt + "\n" + failoverResumeContext;
+        } else {
+          limitExhausted = true;
+          errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) hit limits and were exhausted.`);
+          cumulativeOutput += "\n\n[Execution aborted: all available engines hit limits]";
+        }
+      } else {
+        if (error) {
+          // If it failed with a standard error (e.g. syntax, task validation), do NOT failover
+          errors.push(error.message || String(error));
+          cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
+        } else {
+          success = true;
+          cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
+        }
+        break; // Successfully completed or failed with a non-limit error
+      }
+    }
+
+    if (success || !limitExhausted) {
       break;
     }
 
-    console.log(`\n🤖 [IMH-Code] Attempting execution on engine "${currentEngine}" using model "${currentModel}"...`);
+    // Interactive retry check
+    if (process.stdout.isTTY) {
+      console.log(`\n❌ [IMH-Code] All available engines/models hit limits.`);
+      console.log(`   Wait 15 seconds for limits to reset, then press Enter to retry, or type "abort" to exit.`);
+      
+      const readline = require("readline");
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      
+      const answer: string = await new Promise((resolve) => {
+        rl.question(`👉 Retry or abort? [retry/abort]: `, (ans: string) => {
+          rl.close();
+          resolve(ans.trim().toLowerCase());
+        });
+      });
 
-    const adapter = getAdapter(true, currentEngine);
-    let output = "";
-    let error: any = null;
-
-    try {
-      output = await adapter.run(currentPrompt, currentModel);
-    } catch (err: any) {
-      error = err;
-      output = err.message || "";
-    }
-
-    // Check if limits (tokens/quota/rate) were reached
-    const check = detectLimitCondition(output, error);
-
-    if (check.limitReached) {
-      console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" hit a limit: ${check.reason}`);
-      cumulativeOutput += (cumulativeOutput ? "\n" : "") + check.partialOutput;
-
-      currentEngineIndex++;
-      if (currentEngineIndex < failoverQueue.length) {
-        const nextEng = failoverQueue[currentEngineIndex];
-        console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng}"...`);
-
-        // Build failover resume prompt
-        const failoverResumeContext = [
-          `\n# ⚠️ FAILOVER RESUME CONTEXT`,
-          `The previous engine execution (using ${currentEngine} with model ${currentModel}) hit a limit and was interrupted mid-task.`,
-          `Here is the partial output produced by the previous run before it stopped:`,
-          `\n---`,
-          cumulativeOutput.trim(),
-          `---\n`,
-          `Please resume from exactly where the process was interrupted. Review what was already created or modified, and complete the remaining parts of the original task. Do NOT restart the entire task from scratch.`
-        ].join("\n");
-
-        currentPrompt = finalPrompt + "\n" + failoverResumeContext;
+      if (answer === "abort") {
+        break;
       } else {
-        limitExhausted = true;
-        errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) hit limits and were exhausted.`);
-        cumulativeOutput += "\n\n[Execution aborted: all available engines hit limits]";
+        console.log(`🔄 Resetting failover queue and retrying execution...`);
+        currentEngineIndex = 0;
+        limitExhausted = false;
+        errors.length = 0;
       }
     } else {
-      if (error) {
-        // If it failed with a standard error (e.g. syntax, task validation), do NOT failover
-        errors.push(error.message || String(error));
-        cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
-      } else {
-        success = true;
-        cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
-      }
-      break; // Successfully completed or failed with a non-limit error
+      break;
     }
   }
 
@@ -441,7 +484,12 @@ function detectLimitCondition(
     "context limit",
     "rate_limit",
     "too many requests",
-    "out of tokens"
+    "out of tokens",
+    "exceeded",
+    "limit is consumed",
+    "limit consumed",
+    "consumed",
+    "429"
   ];
 
   const matched = limitPatterns.find(p => lower.includes(p));
@@ -502,9 +550,9 @@ export function getFailoverQueue(
   // 1. Add preferred engines/models from category DEFAULT_MODEL_PREFERENCES
   const prefs = DEFAULT_MODEL_PREFERENCES[category];
   if (prefs) {
-    for (let i = 0; i < prefs.engines.length; i++) {
-      const targetEng = prefs.engines[i];
-      const preferredMdl = prefs.models[i];
+    for (const pref of prefs) {
+      const targetEng = pref.engine;
+      const preferredMdl = pref.model;
       
       // Find the actual model name in the installed engine's models list
       const engineData = config?.available_engines?.[targetEng];
