@@ -2214,9 +2214,9 @@ if [ -f "$PROGRESS_FILE" ]; then
   fi
 fi
 
-TASK="${taskDesc.replace(/"/g, '\\"')}"
+TASK="${escapeForShell(taskDesc)}"
 
-echo "📋 Running Task ${taskNum}: ${t.task}"
+echo "📋 Running Task ${taskNum}: ${escapeForShell(t.task)}"
 echo "   Agent:  ${t.agent}"
 echo "   Model:  ${routedModel || 'default'} via ${routedEngine || 'default'}"
 echo "   Tier:   ${t.tier}"
@@ -2248,7 +2248,7 @@ ${tasks.map((t, i) => {
   const category = getAgentCategory(t.agent);
   const model = config?.model_routing?.[category]?.model || 'default';
   return `echo "\\n─────────────────────────────────────────────────────────────"
-echo "📋 Task ${taskNum}/${tasks.length}: ${t.task}"
+echo "📋 Task ${taskNum}/${tasks.length}: ${escapeForShell(t.task)}"
 echo "   Agent: ${t.agent} → ${model}"
 echo "─────────────────────────────────────────────────────────────"
 bash "$TASKS_DIR/task_${taskNum}.sh"`;
@@ -2721,6 +2721,14 @@ async function updateContextSprintStatus(cwd, sprintNum, status) {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+
+function escapeForShell(str) {
+  return (str || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\`/g, '\\`')
+    .replace(/\$/g, '\\$');
+}
 
 function askQuestion(query) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
