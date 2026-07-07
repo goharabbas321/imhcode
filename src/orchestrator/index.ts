@@ -360,22 +360,27 @@ export async function runAgent(
         output = err.message || "";
       }
 
-      // Check if limits (tokens/quota/rate) were reached
+      // Check if limits (tokens/quota/rate) or command errors occurred
       const check = detectLimitCondition(output, error);
+      const executionFailed = check.limitReached || error !== null;
 
-      if (check.limitReached) {
-        console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" hit a limit: ${check.reason}`);
-        cumulativeOutput += (cumulativeOutput ? "\n" : "") + check.partialOutput;
+      if (executionFailed) {
+        const reason = check.limitReached ? check.reason : (error.message || String(error));
+        console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" execution failed: ${reason}`);
+        
+        if (check.partialOutput || (output && !error)) {
+          cumulativeOutput += (cumulativeOutput ? "\n" : "") + (check.partialOutput || output);
+        }
 
         currentEngineIndex++;
         if (currentEngineIndex < failoverQueue.length) {
           const nextEng = failoverQueue[currentEngineIndex];
-          console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng}"...`);
+          console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng.engine}" using model "${nextEng.model}"...`);
 
           // Build failover resume prompt
           const failoverResumeContext = [
             `\n# ⚠️ FAILOVER RESUME CONTEXT`,
-            `The previous engine execution (using ${currentEngine} with model ${currentModel}) hit a limit and was interrupted mid-task.`,
+            `The previous engine execution (using ${currentEngine} with model ${currentModel}) encountered a failure and was interrupted mid-task.`,
             `Here is the partial output produced by the previous run before it stopped:`,
             `\n---`,
             cumulativeOutput.trim(),
@@ -386,19 +391,13 @@ export async function runAgent(
           currentPrompt = finalPrompt + "\n" + failoverResumeContext;
         } else {
           limitExhausted = true;
-          errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) hit limits and were exhausted.`);
-          cumulativeOutput += "\n\n[Execution aborted: all available engines hit limits]";
+          errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) failed and were exhausted.`);
+          cumulativeOutput += "\n\n[Execution aborted: all available engines failed]";
         }
       } else {
-        if (error) {
-          // If it failed with a standard error (e.g. syntax, task validation), do NOT failover
-          errors.push(error.message || String(error));
-          cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
-        } else {
-          success = true;
-          cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
-        }
-        break; // Successfully completed or failed with a non-limit error
+        success = true;
+        cumulativeOutput += (cumulativeOutput ? "\n" : "") + output;
+        break; // Successfully completed
       }
     }
 
@@ -408,7 +407,7 @@ export async function runAgent(
 
     // Interactive retry check
     if (process.stdout.isTTY) {
-      console.log(`\n❌ [IMH-Code] All available engines/models hit limits.`);
+      console.log(`\n❌ [IMH-Code] All available engines/models failed.`);
       console.log(`   Wait 15 seconds for limits to reset, then press Enter to retry, or type "abort" to exit.`);
       
       const readline = require("readline");
@@ -616,6 +615,27 @@ export function getFailoverQueue(
           if (!expandedQueue.some(t => t.engine === key && t.model === model)) {
             expandedQueue.push({ engine: key, model });
           }
+        }
+      }
+    }
+  }
+
+  // 6. Ensure the fast category model is at the very end of the queue as the ultimate fallback
+  const fastPrefs = DEFAULT_MODEL_PREFERENCES["fast"];
+  if (fastPrefs && fastPrefs.length > 0) {
+    const fastPref = fastPrefs[0];
+    const fastEngineData = config?.available_engines?.[fastPref.engine];
+    if (fastEngineData?.models?.length > 0) {
+      const match = fastEngineData.models.find((m: string) =>
+        m.toLowerCase().replace(/[-._\s]/g, "").includes(fastPref.model.toLowerCase().replace(/[-._\s]/g, ""))
+      );
+      const finalModel = match || fastEngineData.models[0];
+      const cleanFastEng = fastPref.engine.toLowerCase().trim();
+      
+      if (installed.includes(cleanFastEng)) {
+        const exists = expandedQueue.some(t => t.engine === cleanFastEng && t.model === finalModel);
+        if (!exists) {
+          expandedQueue.push({ engine: cleanFastEng, model: finalModel });
         }
       }
     }
