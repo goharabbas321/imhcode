@@ -3440,18 +3440,14 @@ async function runTuiCommand() {
         const lines = [];
         const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
         
-        await new Promise(resolve => {
-          rlInput.on('line', (line) => {
-            if (line.trim() === '/submit' || line.trim() === '.') {
-              resolve();
-              return;
-            }
-            lines.push(line);
-          });
-          rlInput.on('close', () => {
-            resolve();
-          });
-        });
+        while (true) {
+          const line = await new Promise(res => rlInput.question('> ', res));
+          const trimmed = line.trim();
+          if (trimmed === '/submit' || trimmed === '.') {
+            break;
+          }
+          lines.push(line);
+        }
         
         const desc = lines.join('\n');
         rlInput.close();
