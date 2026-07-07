@@ -62,22 +62,51 @@ function runCliWithStdin(
 
     let stdout = "";
     let stderr = "";
+    let hasReceivedData = false;
+    const isTTY = process.stdout.isTTY;
+    let interval: NodeJS.Timeout | null = null;
+
+    if (isTTY) {
+      const spinnerChars = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+      let spinnerIdx = 0;
+      interval = setInterval(() => {
+        if (!hasReceivedData) {
+          process.stdout.write(`\r  \x1b[36m${spinnerChars[spinnerIdx]}\x1b[0m ${cliName} is processing/thinking...`);
+          spinnerIdx = (spinnerIdx + 1) % spinnerChars.length;
+        }
+      }, 100);
+    }
+
+    const clearSpinner = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+      if (!hasReceivedData && isTTY) {
+        process.stdout.write("\r\x1b[K"); // Clear the line
+      }
+      hasReceivedData = true;
+    };
 
     child.stdout.on("data", (chunk) => {
+      clearSpinner();
       stdout += chunk.toString();
       process.stdout.write(chunk);
     });
 
     child.stderr.on("data", (chunk) => {
+      clearSpinner();
       stderr += chunk.toString();
       process.stderr.write(chunk);
     });
 
     child.on("error", (err) => {
+      clearSpinner();
       reject(new Error(`Failed to start child process ${binaryPath}: ${err.message}`));
     });
 
     child.on("close", (code) => {
+      clearSpinner();
       console.log(`\n────────────────────────────────────────────────────────────────`);
       if (code !== 0) {
         reject(
