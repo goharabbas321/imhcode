@@ -546,6 +546,26 @@ export function getFailoverQueue(
     }
   };
 
+  // 0. Add user-configured fallbacks first
+  const userRouting = config?.model_routing?.[category];
+  if (userRouting?.fallbacks && Array.isArray(userRouting.fallbacks)) {
+    for (const fb of userRouting.fallbacks) {
+      if (fb?.engine && fb?.model) {
+        const engineData = config?.available_engines?.[fb.engine];
+        if (engineData?.models?.length > 0) {
+          const exactMatch = engineData.models.find((m: string) =>
+            m.toLowerCase().replace(/[-._\s]/g, "").includes(fb.model.toLowerCase().replace(/[-._\s]/g, ""))
+          );
+          if (exactMatch) {
+            addToQueue(fb.engine, exactMatch);
+          } else {
+            addToQueue(fb.engine, fb.model);
+          }
+        }
+      }
+    }
+  }
+
   // 1. Add preferred engines/models from category DEFAULT_MODEL_PREFERENCES
   const prefs = DEFAULT_MODEL_PREFERENCES[category];
   if (prefs) {

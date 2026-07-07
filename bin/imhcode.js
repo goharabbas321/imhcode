@@ -1310,11 +1310,35 @@ async function setupModelRouting(engines, foundEngines, isInteractive) {
   for (const [cat, cfg] of Object.entries(categories)) {
     const best = selectBestModel(cfg.ranks, engines);
     if (best) {
-      recommended[cat] = best;
+      recommended[cat] = {
+        engine: best.engine,
+        model: best.model,
+        fallbacks: []
+      };
+      // Find all subsequent matches from ranks to act as fallback chain
+      let bestFound = false;
+      for (const [preferredEngine, modelSubstring] of cfg.ranks) {
+        const engData = engines[preferredEngine];
+        if (!engData?.path || !engData.models?.length) continue;
+        const match = engData.models.find(m => normalizeForMatch(m).includes(normalizeForMatch(modelSubstring)));
+        if (match) {
+          if (!bestFound) {
+            bestFound = true;
+          } else {
+            const exists = recommended[cat].fallbacks.some(f => f.engine === preferredEngine && f.model === match);
+            if (!exists) {
+              recommended[cat].fallbacks.push({ engine: preferredEngine, model: match });
+            }
+          }
+        }
+      }
     } else if (foundEngines.length > 0) {
-      // Fallback: primary engine first model
       const fe = foundEngines[0];
-      recommended[cat] = { engine: fe, model: engines[fe].models[0] || 'default' };
+      recommended[cat] = {
+        engine: fe,
+        model: engines[fe].models[0] || 'default',
+        fallbacks: []
+      };
     }
   }
 
@@ -1366,20 +1390,81 @@ async function setupModelRouting(engines, foundEngines, isInteractive) {
           console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended ✅' : ''}`);
         });
 
-        let selectedIdx = allModels.findIndex(m => {
+        let primaryIdx = allModels.findIndex(m => {
           const rec = recommended[cat];
           return rec && m.engine === rec.engine && m.model === rec.model;
         });
-        if (selectedIdx < 0) selectedIdx = 0;
+        if (primaryIdx < 0) primaryIdx = 0;
 
+        let primaryModel;
         while (true) {
-          const ans = await askQuestion(`  Select model for ${cat} [1-${allModels.length}] (default: ${selectedIdx + 1}): `);
-          if (ans === '') { routing[cat] = allModels[selectedIdx]; break; }
+          const ans = await askQuestion(`  Select PRIMARY model for ${cat} [1-${allModels.length}] (default: ${primaryIdx + 1}): `);
+          if (ans === '') { primaryModel = allModels[primaryIdx]; break; }
           const p = parseInt(ans, 10);
-          if (p >= 1 && p <= allModels.length) { routing[cat] = allModels[p - 1]; break; }
+          if (p >= 1 && p <= allModels.length) { primaryModel = allModels[p - 1]; break; }
           console.log(`  ❌ Invalid. Enter 1–${allModels.length}.`);
         }
-        console.log(`  ✅ ${cat}: ${routing[cat].model} (${routing[cat].engine})`);
+        console.log(`  ✅ Primary: ${primaryModel.model} (${primaryModel.engine})`);
+
+        routing[cat] = {
+          engine: primaryModel.engine,
+          model: primaryModel.model,
+          fallbacks: []
+        };
+
+        // Select Fallback #1
+        const fallbackChoices = allModels.filter(m => m.engine !== primaryModel.engine || m.model !== primaryModel.model);
+        if (fallbackChoices.length > 0) {
+          console.log(`\n  Select Fallback #1 model for [${cat}] (optional):`);
+          fallbackChoices.forEach((item, i) => {
+            const isRec = recommended[cat]?.fallbacks?.[0] && recommended[cat].fallbacks[0].engine === item.engine && recommended[cat].fallbacks[0].model === item.model;
+            console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended Fallback #1 🔄' : ''}`);
+          });
+
+          let fb1Idx = fallbackChoices.findIndex(item => {
+            const recFb1 = recommended[cat]?.fallbacks?.[0];
+            return recFb1 && item.engine === recFb1.engine && item.model === recFb1.model;
+          });
+          if (fb1Idx < 0) fb1Idx = 0;
+
+          let fb1Model = null;
+          while (true) {
+            const ans = await askQuestion(`  Select FALLBACK #1 model for ${cat} [1-${fallbackChoices.length}] (skip: press Enter): `);
+            if (ans === '') { break; }
+            const p = parseInt(ans, 10);
+            if (p >= 1 && p <= fallbackChoices.length) { fb1Model = fallbackChoices[p - 1]; break; }
+            console.log(`  ❌ Invalid. Enter 1–${fallbackChoices.length} or press Enter to skip.`);
+          }
+
+          if (fb1Model) {
+            console.log(`  ✅ Fallback #1: ${fb1Model.model} (${fb1Model.engine})`);
+            routing[cat].fallbacks.push({ engine: fb1Model.engine, model: fb1Model.model });
+
+            // Select Fallback #2
+            const fallbackChoices2 = fallbackChoices.filter(m => m.engine !== fb1Model.engine || m.model !== fb1Model.model);
+            if (fallbackChoices2.length > 0) {
+              console.log(`\n  Select Fallback #2 model for [${cat}] (optional):`);
+              fallbackChoices2.forEach((item, i) => {
+                const isRec = recommended[cat]?.fallbacks?.[1] && recommended[cat].fallbacks[1].engine === item.engine && recommended[cat].fallbacks[1].model === item.model;
+                console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended Fallback #2 🔄' : ''}`);
+              });
+
+              let fb2Model = null;
+              while (true) {
+                const ans = await askQuestion(`  Select FALLBACK #2 model for ${cat} [1-${fallbackChoices2.length}] (skip: press Enter): `);
+                if (ans === '') { break; }
+                const p = parseInt(ans, 10);
+                if (p >= 1 && p <= fallbackChoices2.length) { fb2Model = fallbackChoices2[p - 1]; break; }
+                console.log(`  ❌ Invalid. Enter 1–${fallbackChoices2.length} or press Enter to skip.`);
+              }
+
+              if (fb2Model) {
+                console.log(`  ✅ Fallback #2: ${fb2Model.model} (${fb2Model.engine})`);
+                routing[cat].fallbacks.push({ engine: fb2Model.engine, model: fb2Model.model });
+              }
+            }
+          }
+        }
       }
     } else {
       Object.assign(routing, recommended);
@@ -3531,11 +3616,17 @@ async function runTuiCommand() {
         const lines = [];
         const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
         
+        let pasteTimeout = null;
         let isDone = false;
 
         await new Promise(resolve => {
           rlInput.on('line', (line) => {
             if (isDone) return;
+
+            if (pasteTimeout) {
+              clearTimeout(pasteTimeout);
+              pasteTimeout = null;
+            }
 
             const trimmed = line.trim();
             if (trimmed === '/submit' || trimmed === '.') {
@@ -3544,10 +3635,20 @@ async function runTuiCommand() {
               return;
             }
 
+            if (trimmed === '') {
+              if (lines.length > 0) {
+                pasteTimeout = setTimeout(() => {
+                  isDone = true;
+                  resolve();
+                }, 100);
+              }
+            }
+
             lines.push(line);
           });
           
           rlInput.on('close', () => {
+            if (pasteTimeout) clearTimeout(pasteTimeout);
             if (!isDone) {
               isDone = true;
               resolve();
