@@ -107,34 +107,6 @@ export const AGENT_CATEGORY_MAP: Record<string, string> = {
  * Model routing: recommended models per category and engine.
  * Preferences: Mimo v2.5 Pro → frontend, DeepSeek → backend,
  *              GPT → testing/review, Claude → planning, DeepSeek Flash → fast
- */
-const DEFAULT_MODEL_PREFERENCES: Record<string, { engines: string[]; models: string[] }> = {
-  frontend: {
-    engines: ["mimo", "codex", "claude", "opencode"],
-    models: ["mimo-vl-v2.5-pro", "gpt-5.5", "claude-opus-4-6", "gemini-3.5-flash"],
-  },
-  backend: {
-    engines: ["opencode", "codex", "claude", "qwen"],
-    models: ["deepseek-v4-pro", "gpt-5.5", "claude-sonnet-4-5", "qwen3-coder-max"],
-  },
-  planning: {
-    engines: ["claude", "codex", "opencode"],
-    models: ["claude-opus-4-6", "gpt-5.5", "deepseek-v4-pro"],
-  },
-  testing: {
-    engines: ["codex-fugu", "codex", "claude", "opencode"],
-    models: ["fugu-ultra", "gpt-5.5", "claude-opus-4-6", "deepseek-v4-pro"],
-  },
-  review: {
-    engines: ["codex-fugu", "codex", "claude", "opencode"],
-    models: ["fugu-ultra", "gpt-5.5", "claude-sonnet-4-5", "deepseek-v4"],
-  },
-  fast: {
-    engines: ["opencode", "codex", "qwen", "claude"],
-    models: ["deepseek-v4-flash", "gpt-5.4-mini", "qwen3-coder-flash", "claude-haiku-3-5"],
-  },
-};
-
 // ─── Config Loader ────────────────────────────────────────────────────────────
 
 /**
@@ -218,29 +190,7 @@ function resolveModelForTask(
     };
   }
 
-  // 2. Find best available model from installed engines
-  const prefs = DEFAULT_MODEL_PREFERENCES[effectiveCategory];
-  if (prefs && config?.available_engines) {
-    for (let i = 0; i < prefs.engines.length; i++) {
-      const preferredEngine = prefs.engines[i];
-      const preferredModel = prefs.models[i];
-      const engineData = config.available_engines[preferredEngine];
-
-      if (engineData?.models?.length > 0) {
-        // Check if preferred model is available
-        const exactMatch = engineData.models.find((m: string) =>
-          m.toLowerCase().includes(preferredModel.toLowerCase().replace(/-/g, ""))
-        );
-        if (exactMatch) {
-          return { engine: preferredEngine, model: exactMatch };
-        }
-        // Use any available model from this preferred engine
-        return { engine: preferredEngine, model: engineData.models[0] };
-      }
-    }
-  }
-
-  // 3. Fallback: use primary engine + default model
+  // 2. Fallback: use primary engine + default model
   const primaryEngine = config?.primary_engine || engine;
   const defaultModel = config?.default_model || agent.manifest.default_model;
   return { engine: primaryEngine, model: defaultModel };
@@ -483,23 +433,12 @@ export function getFailoverQueue(
   agent: LoadedAgent,
   config: any,
   initialEngine: string,
-  category: string
+  category?: string
 ): string[] {
   const installed = getInstalledEngines(config);
   const queue = [initialEngine];
 
-  // 1. Add category preferred engines from DEFAULT_MODEL_PREFERENCES
-  const prefs = DEFAULT_MODEL_PREFERENCES[category];
-  if (prefs) {
-    for (const eng of prefs.engines) {
-      const clean = eng.toLowerCase().trim();
-      if (!queue.includes(clean) && installed.includes(clean)) {
-        queue.push(clean);
-      }
-    }
-  }
-
-  // 2. Add preferred engines from manifest
+  // 1. Add preferred engines from manifest
   if (agent.manifest.preferred_engines) {
     for (const eng of agent.manifest.preferred_engines) {
       const clean = eng.toLowerCase().trim();
@@ -509,7 +448,7 @@ export function getFailoverQueue(
     }
   }
 
-  // 3. Add fallback engines from manifest
+  // 2. Add fallback engines from manifest
   if (agent.manifest.fallback_engines) {
     for (const eng of agent.manifest.fallback_engines) {
       const clean = eng.toLowerCase().trim();
@@ -519,14 +458,14 @@ export function getFailoverQueue(
     }
   }
 
-  // 4. Add any other installed engines as a last resort
+  // 3. Add any other installed engines as a last resort
   for (const eng of installed) {
     if (!queue.includes(eng)) {
       queue.push(eng);
     }
   }
 
-  // 5. Expand agy to include agy2, agy3, agy4... etc. right after agy
+  // 4. Expand agy to include agy2, agy3, agy4... etc. right after agy
   const expandedQueue: string[] = [];
   for (const eng of queue) {
     if (!expandedQueue.includes(eng)) {
@@ -557,23 +496,6 @@ export function getModelForEngine(
   // Check user's config model routing first
   if (config?.model_routing?.[category]?.engine === engineName) {
     return config.model_routing[category].model;
-  }
-
-  // Check if there is a category preferred model for this engine in DEFAULT_MODEL_PREFERENCES
-  const lookupEngine = (engineName.startsWith("agy") || engineName === "antigravity") ? "agy" : engineName;
-  const prefs = DEFAULT_MODEL_PREFERENCES[category];
-  if (prefs) {
-    const engineIdx = prefs.engines.indexOf(lookupEngine);
-    if (engineIdx >= 0) {
-      const preferredMdl = prefs.models[engineIdx];
-      const engineData = config?.available_engines?.[engineName];
-      if (engineData?.models?.length > 0) {
-        const exactMatch = engineData.models.find((m: string) =>
-          m.toLowerCase().includes(preferredMdl.toLowerCase().replace(/-/g, ""))
-        );
-        if (exactMatch) return exactMatch;
-      }
-    }
   }
 
   // Check available models in config for this engine

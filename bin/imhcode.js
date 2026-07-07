@@ -1298,16 +1298,12 @@ async function runInit() {
     console.log(`✅ Default model: ${defaultModel}`);
   }
 
-  // Fix 4: Smart Model Routing Setup with ranked scoring
-  const modelRouting = await setupModelRouting(engines, foundEngines, isInteractive);
-
   // Write config
   const configPath = path.join(cwd, CONFIG_FILE);
   const configData = {
     primary_engine: primaryEngine,
     default_model:  defaultModel || undefined,
     testing_mode:   'fast',
-    model_routing:  modelRouting,
     available_engines: {},
   };
 
@@ -1339,136 +1335,18 @@ async function runInit() {
   console.log(`\n🕌 HOW TO BUILD WITH IMH-CODE:\n`);
   console.log(`  1. Open docs/start.md → Answer scope questions + write your description`);
   console.log(`  2. Run: imhcode plan`);
-  console.log(`     → Your planning AI (${modelRouting?.planning?.model || 'configured model'}) generates brainstorming.md`);
+  console.log(`     → Your planning AI generates brainstorming.md`);
   console.log(`  3. Open docs/brainstorming.md → Review/edit AI-recommended answers`);
   console.log(`  4. Run: imhcode plan`);
   console.log(`     → Your planning AI generates sprint plans with correct agent routing`);
-  console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks → ${modelRouting?.frontend?.model || 'frontend model'})`);
-  console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks → ${modelRouting?.backend?.model || 'backend model'})`);
+  console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks)`);
+  console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks)`);
   console.log(`  7. Run: imhcode test        → Final testing + security + SEO`);
   console.log(`  8. Run: imhcode report      → Generate PROJECT_REPORT.md`);
   console.log(`\n  Run "imhcode --help" for all commands.`);
   console.log(`─`.repeat(60));
   console.log('');
 }
-// ─── Fix 4: Model Routing Setup Wizard (Ranked Scoring Algorithm) ─────────────
-
-/**
- * Normalize a model/engine string for fuzzy matching:
- * lowercase, remove hyphens, dots, underscores, spaces.
- */
-function normalizeForMatch(s) {
-  return (s || '').toLowerCase().replace(/[-._\s]/g, '');
-}
-
-/**
- * Select the best model for a category from available engines using ranked scoring.
- * Returns { engine, model } or null if nothing found.
- */
-function selectBestModel(category, engines) {
-  const ranks = MODEL_PRIORITY_RANKS[category] || [];
-  for (const [preferredEngine, modelSubstring] of ranks) {
-    const engData = engines[preferredEngine];
-    if (!engData?.path || !engData.models?.length) continue;
-    const match = engData.models.find(m => normalizeForMatch(m).includes(modelSubstring));
-    if (match) return { engine: preferredEngine, model: match };
-  }
-  return null;
-}
-
-async function setupModelRouting(engines, foundEngines, isInteractive) {
-  const categories = {
-    frontend: { label: 'Frontend (UI/UX, components, animations)',         note: 'Mimo v2.5 Pro → GPT-5.5 → Claude Opus' },
-    backend:  { label: 'Backend (APIs, database, business logic)',          note: 'DeepSeek V4 Pro → Kimi K2.7 → Qwen3 Coder → GPT-5.5' },
-    planning: { label: 'Planning (brainstorming, sprint planning)',         note: 'Claude Opus 4.6 → GPT-5.5 → Gemini 3.1 Pro' },
-    testing:  { label: 'Testing (QA, security audit, E2E)',                note: 'GPT-5.5 → GPT-OSS 120B → Claude Opus' },
-    review:   { label: 'Review (SEO, debugging, code review)',             note: 'GPT-5.5 → Claude Sonnet → GPT-OSS 120B' },
-    fast:     { label: 'Fast (boilerplate, config, simple tasks)',         note: 'DeepSeek V4 Flash → Gemini 3.5 Flash → GPT Mini' },
-  };
-
-  const recommended = {};
-  for (const cat of Object.keys(categories)) {
-    const best = selectBestModel(cat, engines);
-    if (best) {
-      recommended[cat] = best;
-    } else if (foundEngines.length > 0) {
-      // Fallback: primary engine first model
-      const fe = foundEngines[0];
-      recommended[cat] = { engine: fe, model: engines[fe].models[0] || 'default' };
-    }
-  }
-
-  // Show recommended routing table
-  console.log('\n' + '─'.repeat(70));
-  console.log('🧠 Recommended Model Routing (ranked by quality for each category):\n');
-  console.log('  Category      │ Engine        │ Model');
-  console.log('  ──────────────┼───────────────┼───────────────────────────────────────');
-  for (const [cat, rec] of Object.entries(recommended)) {
-    const catLabel = cat.padEnd(12);
-    const eng      = (rec.engine || '?').padEnd(13);
-    const mdl      = rec.model || '?';
-    const note     = categories[cat]?.note || '';
-    console.log(`  ${catLabel}  │ ${eng} │ ${mdl}`);
-  }
-  console.log('  ' + '─'.repeat(67));
-  console.log(`\n  Priority: Mimo v2.5 Pro (frontend) | DeepSeek V4 Pro (backend)`);
-  console.log(`            Claude Opus (planning)   | GPT-5.5 (testing/review)`);
-
-  const routing = {};
-
-  if (isInteractive) {
-    const answer = await askQuestion('\nAccept recommended routing? [Y/n] ');
-    if (answer.toLowerCase() === 'n' || answer.toLowerCase() === 'no') {
-      // Let user customize each category
-      for (const [cat, cfg] of Object.entries(categories)) {
-        console.log(`\n  Configure model for [${cat}] — ${cfg.label}`);
-        console.log(`  Priority: ${cfg.note}`);
-
-        const allModels = [];
-        for (const eng of foundEngines) {
-          for (const m of engines[eng].models) {
-            allModels.push({ engine: eng, model: m });
-          }
-        }
-
-        if (allModels.length === 0) {
-          routing[cat] = recommended[cat];
-          continue;
-        }
-
-        allModels.forEach((item, i) => {
-          const rec   = recommended[cat];
-          const isRec = rec && rec.engine === item.engine && rec.model === item.model;
-          console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended ✅' : ''}`);
-        });
-
-        let selectedIdx = allModels.findIndex(m => {
-          const rec = recommended[cat];
-          return rec && m.engine === rec.engine && m.model === rec.model;
-        });
-        if (selectedIdx < 0) selectedIdx = 0;
-
-        while (true) {
-          const ans = await askQuestion(`  Select model for ${cat} [1-${allModels.length}] (default: ${selectedIdx + 1}): `);
-          if (ans === '') { routing[cat] = allModels[selectedIdx]; break; }
-          const p = parseInt(ans, 10);
-          if (p >= 1 && p <= allModels.length) { routing[cat] = allModels[p - 1]; break; }
-          console.log(`  ❌ Invalid. Enter 1–${allModels.length}.`);
-        }
-        console.log(`  ✅ ${cat}: ${routing[cat].model} (${routing[cat].engine})`);
-      }
-    } else {
-      Object.assign(routing, recommended);
-      console.log('\n✅ Recommended routing accepted.');
-    }
-  } else {
-    Object.assign(routing, recommended);
-    console.log('\n✅ Recommended routing applied automatically.');
-  }
-
-  return routing;
-}
-
 // ─── Fix 0: LLM-Powered Planning ─────────────────────────────────────────────
 
 /**
@@ -2798,7 +2676,7 @@ function scanAssistantCLIs() {
   }
 
   const fallbackModels = {
-    claude: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-5-haiku', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-3-5', 'claude-sonnet-5', 'claude-fable-5', 'claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
+    claude: ['claude-sonnet-5', 'claude-fable-5', 'claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
     opencode: ['mimo-vl-v2.5-pro', 'deepseek-v4-pro', 'deepseek-v4-flash', 'gemini-3.5-flash', 'kimi-k2.7-code', 'qwen-3-coder-480b', 'gpt-oss-120b'],
     codex: ['gpt-5.5', 'gpt-5.4-mini', 'gpt-mini'],
     'codex-fugu': ['fugu', 'fugu-ultra'],
