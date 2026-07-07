@@ -12,7 +12,7 @@
  *   imhcode agent list                 → List all discovered agents
  *   imhcode agent inspect <id>         → Show full manifest + loaded skills
  *   imhcode agent run <id> "<task>"    → Run agent (dry-run by default)
- *     --engine <cli>                   → Override engine (claude|opencode|codex|agy|qwen|mimo)
+ *     --engine <cli>                   → Override engine (claude|opencode|codex|codex-fugu|agy|qwen|mimo)
  *     -m, --model <model>              → Override model
  *     --live                           → Call real LLM
  *     --output <path>                  → Custom session output directory
@@ -39,6 +39,88 @@ const START_MD       = path.join(DOCS_DIR, 'start.md');
 const BRAINSTORM_MD  = path.join(DOCS_DIR, 'brainstorming.md');
 const BRIEF_MD       = path.join(DOCS_DIR, 'PROJECT_BRIEF.md');
 const CONTEXT_MD     = path.join(LOCAL_DIR_NAME, 'context.md');
+
+/**
+ * Ranked priority lists per category.
+ * The algorithm scores each available model against these lists
+ * and selects the highest-ranked match found in the installed engines.
+ */
+const MODEL_PRIORITY_RANKS = {
+  frontend: [
+    // Engine       Model substring to match (lowercase, no hyphens/dots)
+    ['mimo',      'mimov25pro'],
+    ['mimo',      'mimov25'],
+    ['opencode',  'mimov25pro'],
+    ['opencode',  'mimov25'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['opencode',  'gemini35flash'],
+    ['opencode',  'gemini25pro'],
+    ['claude',    'claudeopus46'],
+    ['claude',    'opus'],
+  ],
+  backend: [
+    ['opencode',  'deepseekv4pro'],
+    ['opencode',  'deepseekv4'],
+    ['opencode',  'kimik27code'],
+    ['opencode',  'kimik2'],
+    ['opencode',  'qwen3coder480b'],
+    ['opencode',  'qwen3coder'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['opencode',  'gptoss120b'],
+    ['qwen',      'qwen3codermax'],
+    ['qwen',      'qwen3coder'],
+    ['claude',    'claudesonnet46'],
+    ['claude',    'sonnet'],
+  ],
+  planning: [
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['claude',    'claudeopus46'],
+    ['claude',    'opus'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['opencode',  'gemini31propreview'],
+    ['opencode',  'gemini31pro'],
+    ['opencode',  'deepseekv4pro'],
+  ],
+  testing: [
+    ['codex-fugu', 'fuguultra'],
+    ['codex-fugu', 'fugu'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'gptoss120bmedium'],
+    ['agy',       'gptoss120b'],
+    ['agy',       'claudeopus46'],
+    ['agy',       'claudeopus'],
+    ['opencode',  'deepseekv4pro'],
+    ['claude',    'claudeopus46'],
+  ],
+  review: [
+    ['codex-fugu', 'fuguultra'],
+    ['codex-fugu', 'fugu'],
+    ['codex',     'gpt55'],
+    ['codex',     'gpt5'],
+    ['agy',       'claudesonnet46'],
+    ['agy',       'claudesonnet'],
+    ['opencode',  'gptoss120b'],
+    ['claude',    'claudesonnet46'],
+    ['opencode',  'deepseekv4pro'],
+  ],
+  fast: [
+    ['opencode',  'deepseekv4flash'],
+    ['opencode',  'deepseekv4flash'],
+    ['opencode',  'gemini35flash'],
+    ['codex',     'gpt54mini'],
+    ['codex',     'gptmini'],
+    ['qwen',      'qwen3coderflash'],
+    ['claude',    'claudehaiku35'],
+    ['claude',    'haiku'],
+  ],
+};
 
 // ─── Entry Point ───────────────────────────────────────────────────────────────
 
@@ -155,7 +237,7 @@ function printGeneralHelp() {
     ${CLI_CMD} agent inspect <id>     → Show agent manifest + loaded skills
     ${CLI_CMD} agent run <id> "<task>" → Run agent (dry-run by default)
       --live                          → Call real LLM
-      --engine <cli>                  → Override engine (claude|opencode|codex|agy|qwen|mimo)
+      --engine <cli>                  → Override engine (claude|opencode|codex|codex-fugu|agy|qwen|mimo)
       -m, --model <model>             → Override model
       --output <path>                 → Save session to custom path
 
@@ -1017,6 +1099,132 @@ async function runInit() {
     console.log(`  Created docs/start.md (write your project here)`);
   }
 
+  const globalConfigPath = path.join(GLOBAL_DIR, 'global.config.json');
+  let useGlobal = false;
+  let globalConfig = null;
+
+  if (fs.existsSync(globalConfigPath)) {
+    try {
+      globalConfig = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
+    } catch {}
+  }
+
+  const isInteractive = process.stdout.isTTY;
+
+  if (globalConfig && isInteractive) {
+    console.log(`\n🕌 Found saved global default configuration:`);
+    console.log(`   Primary Engine: ${globalConfig.primary_engine} (${globalConfig.default_model || 'auto'})`);
+    console.log(`   Testing Route:  ${globalConfig.model_routing?.testing?.model || 'auto'} via ${globalConfig.model_routing?.testing?.engine || 'auto'}`);
+    console.log(`   Review Route:   ${globalConfig.model_routing?.review?.model || 'auto'} via ${globalConfig.model_routing?.review?.engine || 'auto'}`);
+
+    const ans = await askQuestion('\nUse default global engine and model routing? [Y/n] ');
+    if (ans.toLowerCase() !== 'n' && ans.toLowerCase() !== 'no') {
+      useGlobal = true;
+    }
+  } else if (globalConfig) {
+    useGlobal = true;
+  }
+
+  if (useGlobal && globalConfig) {
+    console.log('\n✅ Applying global default configuration...');
+
+    const dirsToCreate = [
+      DOCS_DIR,
+      LOCAL_DIR_NAME,
+      path.join(LOCAL_DIR_NAME, 'commands'),
+      path.join(LOCAL_DIR_NAME, 'sessions'),
+    ];
+    for (const dir of dirsToCreate) {
+      const dirPath = path.join(cwd, dir);
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        console.log(`  Created local directory: ${dir}`);
+      }
+    }
+
+    const startMdPath = path.join(cwd, START_MD);
+    if (!fs.existsSync(startMdPath)) {
+      const startMdContent = [
+        '# 🕌 IMH-Code — Project Start',
+        '',
+        '> **Imam Hussain Coding Harness Platform**',
+        '> Answer the scope questions below, write your description, then run `imhcode plan`.',
+        '',
+        '---',
+        '',
+        '## ⚡ Quick Scope Check',
+        '',
+        '**Do you need a backend API / server-side logic?**',
+        '> **Answer:** yes  *(change to: yes / no / unsure)*',
+        '',
+        '**Do you need a mobile app (iOS/Android)?**',
+        '> **Answer:** no  *(change to: yes / no)*',
+        '',
+        '---',
+        '',
+        '## 📝 Your Project Description',
+        '',
+        'Write your complete project idea below. Be as detailed as possible.',
+        'Include: what you\'re building, who it\'s for, key features, preferred stack,',
+        'design preferences, integrations needed, business constraints.',
+        '',
+        '<!-- WRITE_PROMPT_HERE -->',
+        'I want to build a SaaS dashboard for managing hotel room bookings with real-time availability,',
+        'a Next.js frontend, Laravel API backend, and PostgreSQL database. Target users are hotel managers.',
+        'Key features: room calendar, booking CRUD, guest management, reporting, email notifications.',
+        '<!-- END_PROMPT -->',
+        '',
+        '---',
+        '',
+        '## 🚀 Next Step',
+        '',
+        'After filling in the scope and your description, run:',
+        '',
+        '```bash',
+        'imhcode plan',
+        '```',
+        '',
+        'IMH-Code will invoke your configured **planning AI model** (e.g. Claude Opus, GPT-5.5)',
+        'to generate `docs/brainstorming.md` with smart, project-specific questions and answers.',
+      ].join('\n');
+      fs.writeFileSync(startMdPath, startMdContent, 'utf8');
+      console.log(`  Created docs/start.md (write your project here)`);
+    }
+
+    const localGitignore = path.join(cwd, '.gitignore');
+    if (!fs.existsSync(localGitignore)) {
+      const gitignoreTemplate = path.join(packageRoot, '.gitignore.template');
+      if (fs.existsSync(gitignoreTemplate)) {
+        fs.copyFileSync(gitignoreTemplate, localGitignore);
+        console.log(`  Created local .gitignore`);
+      }
+    }
+
+    registerCliGlobally(imhcodeScriptPath);
+
+    const configPath = path.join(cwd, CONFIG_FILE);
+    fs.writeFileSync(configPath, JSON.stringify(globalConfig, null, 2), 'utf8');
+    console.log(`\n💾 Configuration saved: ${configPath}`);
+
+    console.log(`\n✅ ${PLATFORM_NAME} initialized successfully!`);
+    console.log(`─`.repeat(60));
+    console.log(`\n🕌 HOW TO BUILD WITH IMH-CODE:\n`);
+    console.log(`  1. Open docs/start.md → Answer scope questions + write your description`);
+    console.log(`  2. Run: imhcode plan`);
+    console.log(`     → Your planning AI generates brainstorming.md`);
+    console.log(`  3. Open docs/brainstorming.md → Review/edit AI-recommended answers`);
+    console.log(`  4. Run: imhcode plan`);
+    console.log(`     → Your planning AI generates sprint plans with correct agent routing`);
+    console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks)`);
+    console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks)`);
+    console.log(`  7. Run: imhcode test        → Final testing + security + SEO`);
+    console.log(`  8. Run: imhcode report      → Generate PROJECT_REPORT.md`);
+    console.log(`\n  Run "imhcode --help" for all commands.`);
+    console.log(`─`.repeat(60));
+    console.log('');
+    return;
+  }
+
   // Create .gitignore
   const localGitignore = path.join(cwd, '.gitignore');
   if (!fs.existsSync(localGitignore)) {
@@ -1028,7 +1236,7 @@ async function runInit() {
   }
 
   registerCliGlobally(imhcodeScriptPath);
-  ensureCavemanAndGraphify();
+  ensureCavemanAndGraphify(globalConfig?.skills_configured);
 
   // ── Interactive Engine & Model Setup ────────────────────────────────────────
   console.log('\n🔍 Scanning for local coding assistant CLIs...');
@@ -1037,12 +1245,11 @@ async function runInit() {
 
   if (foundEngines.length === 0) {
     console.warn('\n⚠️  No local coding assistant CLIs detected.');
-    console.warn('   Supported: claude, opencode, codex, agy (Antigravity), qwen (QwenCode), mimo (MimoCode)');
+    console.warn('   Supported: claude, opencode, codex, codex-fugu, agy (Antigravity), qwen (QwenCode), mimo (MimoCode)');
     console.warn('   Install one and re-run "imhcode" to configure model routing.\n');
   }
 
   let primaryEngine = 'claude';
-  const isInteractive = process.stdout.isTTY;
 
   if (isInteractive && foundEngines.length > 0) {
     console.log('\nFound the following local coding assistant CLIs:');
@@ -1114,6 +1321,18 @@ async function runInit() {
   fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf8');
   console.log(`\n💾 Configuration saved: ${configPath}`);
 
+  // Save to global config defaults as well
+  const globalConfigData = {
+    ...configData,
+    skills_configured: true,
+  };
+  try {
+    fs.writeFileSync(globalConfigPath, JSON.stringify(globalConfigData, null, 2), 'utf8');
+    console.log(`💾 Global defaults saved: ${globalConfigPath}`);
+  } catch (e) {
+    console.warn(`⚠️ Could not save global default configuration: ${e.message}`);
+  }
+
   // Print final guide
   console.log(`\n✅ ${PLATFORM_NAME} initialized successfully!`);
   console.log(`─`.repeat(60));
@@ -1132,86 +1351,7 @@ async function runInit() {
   console.log(`─`.repeat(60));
   console.log('');
 }
-
 // ─── Fix 4: Model Routing Setup Wizard (Ranked Scoring Algorithm) ─────────────
-
-/**
- * Ranked priority lists per category.
- * The algorithm scores each available model against these lists
- * and selects the highest-ranked match found in the installed engines.
- */
-const MODEL_PRIORITY_RANKS = {
-  frontend: [
-    // Engine       Model substring to match (lowercase, no hyphens/dots)
-    ['mimo',      'mimov25pro'],
-    ['mimo',      'mimov25'],
-    ['opencode',  'mimov25pro'],
-    ['opencode',  'mimov25'],
-    ['codex',     'gpt55'],
-    ['codex',     'gpt5'],
-    ['agy',       'claudeopus46'],
-    ['agy',       'claudeopus'],
-    ['opencode',  'gemini35flash'],
-    ['opencode',  'gemini25pro'],
-    ['claude',    'claudeopus46'],
-    ['claude',    'opus'],
-  ],
-  backend: [
-    ['opencode',  'deepseekv4pro'],
-    ['opencode',  'deepseekv4'],
-    ['opencode',  'kimik27code'],
-    ['opencode',  'kimik2'],
-    ['opencode',  'qwen3coder480b'],
-    ['opencode',  'qwen3coder'],
-    ['codex',     'gpt55'],
-    ['codex',     'gpt5'],
-    ['opencode',  'gptoss120b'],
-    ['qwen',      'qwen3codermax'],
-    ['qwen',      'qwen3coder'],
-    ['claude',    'claudesonnet46'],
-    ['claude',    'sonnet'],
-  ],
-  planning: [
-    ['agy',       'claudeopus46'],
-    ['agy',       'claudeopus'],
-    ['claude',    'claudeopus46'],
-    ['claude',    'opus'],
-    ['codex',     'gpt55'],
-    ['codex',     'gpt5'],
-    ['opencode',  'gemini31propreview'],
-    ['opencode',  'gemini31pro'],
-    ['opencode',  'deepseekv4pro'],
-  ],
-  testing: [
-    ['codex',     'gpt55'],
-    ['codex',     'gpt5'],
-    ['agy',       'gptoss120bmedium'],
-    ['agy',       'gptoss120b'],
-    ['agy',       'claudeopus46'],
-    ['agy',       'claudeopus'],
-    ['opencode',  'deepseekv4pro'],
-    ['claude',    'claudeopus46'],
-  ],
-  review: [
-    ['codex',     'gpt55'],
-    ['codex',     'gpt5'],
-    ['agy',       'claudesonnet46'],
-    ['agy',       'claudesonnet'],
-    ['opencode',  'gptoss120b'],
-    ['claude',    'claudesonnet46'],
-    ['opencode',  'deepseekv4pro'],
-  ],
-  fast: [
-    ['opencode',  'deepseekv4flash'],
-    ['opencode',  'deepseekv4flash'],
-    ['opencode',  'gemini35flash'],
-    ['codex',     'gpt54mini'],
-    ['codex',     'gptmini'],
-    ['qwen',      'qwen3coderflash'],
-    ['claude',    'claudehaiku35'],
-    ['claude',    'haiku'],
-  ],
-};
 
 /**
  * Normalize a model/engine string for fuzzy matching:
@@ -2633,9 +2773,38 @@ function scanAssistantCLIs() {
     claude:   { name: 'Claude Code',          path: resolveBinary('claude',   ['~/.local/bin/claude',  '/usr/local/bin/claude',  '/opt/homebrew/bin/claude']),   models: [], modelsCmd: b => `"${b}" --list-models 2>/dev/null || echo ''` },
     opencode: { name: 'OpenCode',              path: resolveBinary('opencode', ['~/.opencode/bin/opencode', '/usr/local/bin/opencode']),                           models: [], modelsCmd: b => `"${b}" models 2>/dev/null` },
     codex:    { name: 'Codex (OpenAI)',        path: resolveBinary('codex',    ['~/Library/PhpWebStudy/env/node/bin/codex', '/usr/local/bin/codex']),              models: [], modelsCmd: b => `"${b}" debug models 2>/dev/null` },
+    'codex-fugu': { name: 'Codex Fugu',       path: resolveBinary('codex-fugu', ['~/.local/bin/codex-fugu', '/usr/local/bin/codex-fugu', '/opt/homebrew/bin/codex-fugu']), models: [], modelsCmd: b => `"${b}" debug models 2>/dev/null || echo ''` },
     agy:      { name: 'Antigravity CLI (agy)', path: resolveBinary('agy',      ['~/.local/bin/agy', '/usr/local/bin/agy', '/opt/homebrew/bin/agy']),               models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
     qwen:     { name: 'QwenCode (qwen)',       path: resolveBinary('qwen',     ['~/.local/bin/qwen', '/usr/local/bin/qwen', '/opt/homebrew/bin/qwen']),            models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
     mimo:     { name: 'MimoCode (mimo)',       path: resolveBinary('mimo',     ['~/.local/bin/mimo', '/usr/local/bin/mimo', '/opt/homebrew/bin/mimo', '~/.mimo/bin/mimo']), models: [], modelsCmd: b => `"${b}" models 2>/dev/null || echo ''` },
+  };
+
+  // Scan for agy2, agy3, agy4, etc.
+  for (let i = 2; i <= 10; i++) {
+    const key = `agy${i}`;
+    const binaryPath = resolveBinary(key, [
+      `~/.local/bin/${key}`,
+      `/usr/local/bin/${key}`,
+      `/opt/homebrew/bin/${key}`,
+    ]);
+    if (binaryPath) {
+      engines[key] = {
+        name: `Antigravity CLI (${key})`,
+        path: binaryPath,
+        models: [],
+        modelsCmd: b => `"${b}" models 2>/dev/null || echo ''`
+      };
+    }
+  }
+
+  const fallbackModels = {
+    claude: ['claude-3-5-sonnet', 'claude-3-opus', 'claude-3-5-haiku', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-3-5', 'claude-sonnet-5', 'claude-fable-5', 'claude-opus-4-8', 'opus', 'sonnet', 'haiku'],
+    opencode: ['mimo-vl-v2.5-pro', 'deepseek-v4-pro', 'deepseek-v4-flash', 'gemini-3.5-flash', 'kimi-k2.7-code', 'qwen-3-coder-480b', 'gpt-oss-120b'],
+    codex: ['gpt-5.5', 'gpt-5.4-mini', 'gpt-mini'],
+    'codex-fugu': ['fugu', 'fugu-ultra'],
+    agy: ['claude-opus-4-6', 'gemini-3.5-flash'],
+    qwen: ['qwen3-coder-max', 'qwen3-coder-flash'],
+    mimo: ['mimo-vl-v2.5-pro', 'mimo-vl-v2.5']
   };
 
   for (const [key, eng] of Object.entries(engines)) {
@@ -2652,6 +2821,11 @@ function scanAssistantCLIs() {
       }
       if (models.length > 0) eng.models = models;
     } catch { eng.models = []; }
+
+    const baseKey = key.startsWith('agy') ? 'agy' : key;
+    if (eng.models.length === 0 && fallbackModels[baseKey]) {
+      eng.models = fallbackModels[baseKey];
+    }
   }
 
   return engines;
@@ -2725,7 +2899,11 @@ function registerCliGlobally(imhcodeScriptPath) {
   }
 }
 
-function ensureCavemanAndGraphify() {
+function ensureCavemanAndGraphify(skillsAlreadyConfigured) {
+  if (skillsAlreadyConfigured) {
+    console.log('\n🔍 Token-saving skills already configured globally. Skipping installation checks.');
+    return;
+  }
   console.log('\n🔍 Checking token-saving skills...');
   let skillsInstalled = false;
   try { execSync('npx --no-install skills --version', { stdio: 'ignore' }); skillsInstalled = true; } catch { /* not installed */ }
@@ -3129,7 +3307,17 @@ async function runTuiCommand() {
 
   function detectProjectState(dir) {
     const hasConfig = fs.existsSync(path.join(dir, CONFIG_FILE));
-    const hasStart = fs.existsSync(path.join(dir, START_MD));
+    let hasStart = fs.existsSync(path.join(dir, START_MD));
+    if (hasStart) {
+      try {
+        const content = fs.readFileSync(path.join(dir, START_MD), 'utf8');
+        if (content.includes('hotel room bookings with real-time availability')) {
+          hasStart = false; // default template hasn't been edited/replaced yet
+        }
+      } catch {
+        hasStart = false;
+      }
+    }
     const hasBrainstorm = fs.existsSync(path.join(dir, BRAINSTORM_MD));
     const hasSprints = detectSprintDocs(dir);
     
@@ -3369,21 +3557,29 @@ async function runTuiCommand() {
         process.stdout.write(ANSI.showCursor + '\n');
 
         console.log(ANSI.cyan + '\n🕌 IMH-Code — Write Requirements' + ANSI.reset);
-        console.log('Enter your project description below (press Enter on empty line to finish):\n');
+        console.log('Enter your project description below. When done, type /submit or a single . on a new line to finish:\n');
         
         const lines = [];
         const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
         
-        while (true) {
-          const line = await new Promise(res => rlInput.question('> ', res));
-          if (line.trim() === '') break;
-          lines.push(line);
-        }
+        await new Promise(resolve => {
+          rlInput.on('line', (line) => {
+            if (line.trim() === '/submit' || line.trim() === '.') {
+              resolve();
+              return;
+            }
+            lines.push(line);
+          });
+          rlInput.on('close', () => {
+            resolve();
+          });
+        });
         
         const desc = lines.join('\n');
+        rlInput.close();
+        
         if (desc.trim() === '') {
           console.log('⚠️  No requirements entered. Aborting.');
-          rlInput.close();
           inSubMode = false;
           if (isRaw) process.stdin.setRawMode(true);
           process.stdin.resume();
@@ -3391,10 +3587,12 @@ async function runTuiCommand() {
           break;
         }
 
+        const rlQuestions = readline.createInterface({ input: process.stdin, output: process.stdout });
+
         // Ask for backend
         let backend = 'yes';
         while (true) {
-          const ans = await new Promise(res => rlInput.question('\nDo you need a backend API / server-side logic? (yes/no/unsure) [default: yes]: ', res));
+          const ans = await new Promise(res => rlQuestions.question('\nDo you need a backend API / server-side logic? (yes/no/unsure) [default: yes]: ', res));
           const cleanAns = ans.trim().toLowerCase();
           if (cleanAns === '') { backend = 'yes'; break; }
           if (['yes', 'no', 'unsure'].includes(cleanAns)) { backend = cleanAns; break; }
@@ -3404,14 +3602,14 @@ async function runTuiCommand() {
         // Ask for mobile
         let mobile = 'no';
         while (true) {
-          const ans = await new Promise(res => rlInput.question('Do you need a mobile app (iOS/Android)? (yes/no) [default: no]: ', res));
+          const ans = await new Promise(res => rlQuestions.question('Do you need a mobile app (iOS/Android)? (yes/no) [default: no]: ', res));
           const cleanAns = ans.trim().toLowerCase();
           if (cleanAns === '') { mobile = 'no'; break; }
           if (['yes', 'no'].includes(cleanAns)) { mobile = cleanAns; break; }
           console.log('❌ Invalid input. Please enter yes or no.');
         }
         
-        rlInput.close();
+        rlQuestions.close();
 
         // Write start.md template
         const startMdPath = path.join(cwd, START_MD);

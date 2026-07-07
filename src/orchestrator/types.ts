@@ -67,7 +67,7 @@ export interface LoadedAgent {
 // ─── Execution ────────────────────────────────────────────────────────────────
 
 export interface ExecutionOptions {
-  /** Override the CLI engine (claude, opencode, codex, antigravity) */
+  /** Override the CLI engine (claude, opencode, codex, codex-fugu, antigravity) */
   engine?: string;
   /** Explicitly override the model (e.g. gpt-4o, gemini-3.5-flash) */
   model?: string;

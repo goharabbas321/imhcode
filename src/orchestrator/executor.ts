@@ -129,9 +129,14 @@ export class ClaudeCodeCLIAdapter implements EngineAdapter {
     const binary = resolveBinary("claude", [
       "~/.local/bin/claude",
       "/usr/local/bin/claude",
+      "/opt/homebrew/bin/claude",
     ]);
 
-    const args = ["-p"];
+    const args = [
+      "-p",
+      "--dangerously-skip-permissions",
+      "--no-session-persistence",
+    ];
     if (model && model !== "claude" && model !== "default") {
       args.push("--model", model);
     }
@@ -155,8 +160,9 @@ export class OpenCodeCLIAdapter implements EngineAdapter {
     if (model && model !== "opencode" && model !== "default") {
       args.push("-m", model);
     }
+    args.push(prompt);
 
-    const rawOutput = await runCliWithStdin(binary, args, prompt, "OpenCode");
+    const rawOutput = await runCliWithStdin(binary, args, "", "OpenCode");
 
     // OpenCode prints progress lines starting with "> build ·" or similar.
     // Filter these out to get a clean result.
@@ -212,28 +218,78 @@ export class CodexCLIAdapter implements EngineAdapter {
   }
 }
 
+// ─── Codex Fugu CLI Adapter ────────────────────────────────────────────────────
+
+export class CodexFuguCLIAdapter implements EngineAdapter {
+  readonly name = "codex-fugu";
+
+  async run(prompt: string, model: string): Promise<string> {
+    const binary = resolveBinary("codex-fugu", [
+      "~/.local/bin/codex-fugu",
+      "/usr/local/bin/codex-fugu",
+      "/opt/homebrew/bin/codex-fugu",
+    ]);
+
+    const tempFile = path.join(
+      process.cwd(),
+      `.codex-fugu-out-${crypto.randomBytes(6).toString("hex")}.txt`
+    );
+
+    const args = [
+      "--dangerously-bypass-approvals-and-sandbox",
+      "exec",
+      "-",
+      "-o",
+      tempFile,
+    ];
+    if (model && model !== "codex-fugu" && model !== "default") {
+      args.push("-m", model);
+    }
+
+    try {
+      await runCliWithStdin(binary, args, prompt, "Codex Fugu");
+      if (!fs.existsSync(tempFile)) {
+        throw new Error(`Codex Fugu execution succeeded but output file was not created at ${tempFile}`);
+      }
+      const output = fs.readFileSync(tempFile, "utf8");
+      return output;
+    } finally {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    }
+  }
+}
+
 // ─── Antigravity CLI Adapter (agy) ────────────────────────────────────────────
 // Google Antigravity CLI — binary: `agy`
 // Docs: https://antigravity.google/docs/cli-using
 // Headless: `agy -p "<prompt>"` or via stdin with `agy -p`
 
 export class AgyCLIAdapter implements EngineAdapter {
-  readonly name = "agy";
+  readonly name: string;
+
+  constructor(name: string = "agy") {
+    this.name = name;
+  }
 
   async run(prompt: string, model: string): Promise<string> {
-    const binary = resolveBinary("agy", [
-      "~/.local/bin/agy",
-      "/usr/local/bin/agy",
-      "/opt/homebrew/bin/agy",
+    const binary = resolveBinary(this.name, [
+      `~/.local/bin/${this.name}`,
+      `/usr/local/bin/${this.name}`,
+      `/opt/homebrew/bin/${this.name}`,
     ]);
 
-    const args: string[] = [];
-    if (model && model !== "agy" && model !== "default") {
-      args.push("--model", model);
+    const args: string[] = [
+      "--dangerously-skip-permissions",
+      "-p",
+      prompt,
+    ];
+    if (model && model !== this.name && model !== "agy" && model !== "default") {
+      args.unshift("--model", model);
     }
-    args.push("-p", "-");
 
-    return await runCliWithStdin(binary, args, prompt, "Antigravity (agy)");
+    return await runCliWithStdin(binary, args, "", `Antigravity (${this.name})`);
   }
 }
 
@@ -311,8 +367,11 @@ export function getAdapter(
   if (engine === "codex") {
     return new CodexCLIAdapter();
   }
-  if (engine === "agy" || engine === "antigravity") {
-    return new AgyCLIAdapter();
+  if (engine === "codex-fugu" || engine === "codexfugu" || engine === "fugu") {
+    return new CodexFuguCLIAdapter();
+  }
+  if (engine === "agy" || engine === "antigravity" || /^agy\d+$/.test(engine)) {
+    return new AgyCLIAdapter(engine === "antigravity" ? "agy" : engine);
   }
   if (engine === "qwen" || engine === "qwencode" || engine === "qwen-code") {
     return new QwenCodeCLIAdapter();
@@ -324,6 +383,9 @@ export function getAdapter(
   // ── Model-name prefix → engine mapping ──────────────────────────────────────
   if (engine.startsWith("claude")) {
     return new ClaudeCodeCLIAdapter();
+  }
+  if (engine.startsWith("codex-fugu") || engine.startsWith("fugu")) {
+    return new CodexFuguCLIAdapter();
   }
   if (engine.startsWith("gpt") || engine.startsWith("o1") || engine.startsWith("o3") || engine.startsWith("o4")) {
     return new CodexCLIAdapter();
@@ -364,6 +426,9 @@ export function getAdapter(
   if (binaryExists("claude", ["~/.local/bin/claude"])) {
     return new ClaudeCodeCLIAdapter();
   }
+  if (binaryExists("codex-fugu", ["~/.local/bin/codex-fugu", "/opt/homebrew/bin/codex-fugu"])) {
+    return new CodexFuguCLIAdapter();
+  }
   if (binaryExists("codex", ["~/Library/PhpWebStudy/env/node/bin/codex"])) {
     return new CodexCLIAdapter();
   }
@@ -379,7 +444,7 @@ export function getAdapter(
 
   throw new Error(
     `❌ No active CLI agent engine could be auto-detected.\n` +
-      `  Supported engines: claude, opencode, codex, agy, qwen, mimo\n` +
+      `  Supported engines: claude, opencode, codex, codex-fugu, agy, qwen, mimo\n` +
       `  Install one and re-run, or specify with: --engine <engine-name>\n` +
       `  Run "imhcode --help" for more information.`
   );
