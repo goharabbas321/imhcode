@@ -14,10 +14,9 @@ export type {
   LoadedAgent,
   LoadedSkill,
   LoadedMemoryFile,
-  ExecutionOptions,
-  ExecutionContext,
   ExecutionResult,
   EngineAdapter,
+  FailoverTarget,
 } from "./types";
 
 // Schema & validation
@@ -64,7 +63,38 @@ import * as path from "path";
 import { buildPrompt } from "./builder";
 import { getAdapter } from "./executor";
 import { saveSession } from "./session";
-import type { LoadedAgent, ExecutionOptions, ExecutionResult } from "./types";
+import type { LoadedAgent, ExecutionOptions, ExecutionResult, FailoverTarget } from "./types";
+
+/**
+ * Model routing: recommended models per category and engine.
+ * Tailored to custom priorities: Mimo/Deepseek, Claude Opus, and Fugu.
+ */
+const DEFAULT_MODEL_PREFERENCES: Record<string, { engines: string[]; models: string[] }> = {
+  frontend: {
+    engines: ["mimo", "agy", "opencode"],
+    models: ["mimo-vl-v2.5-pro", "Claude Opus 4.6", "deepseek-v4-flash"],
+  },
+  backend: {
+    engines: ["opencode", "agy", "opencode"],
+    models: ["deepseek-v4-pro", "Claude Opus 4.6", "deepseek-v4-flash"],
+  },
+  planning: {
+    engines: ["agy", "codex-fugu", "opencode"],
+    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
+  },
+  testing: {
+    engines: ["agy", "codex-fugu", "opencode"],
+    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
+  },
+  review: {
+    engines: ["agy", "codex-fugu", "opencode"],
+    models: ["Claude Opus 4.8", "fugu-ultra", "deepseek-v4-flash"],
+  },
+  fast: {
+    engines: ["opencode"],
+    models: ["deepseek-v4-flash"],
+  },
+};
 
 // ─── Agent Category Map ───────────────────────────────────────────────────────
 
@@ -190,7 +220,29 @@ function resolveModelForTask(
     };
   }
 
-  // 2. Fallback: use primary engine + default model
+  // 2. Find best available model from installed engines using priority ranks
+  const prefs = DEFAULT_MODEL_PREFERENCES[effectiveCategory];
+  if (prefs && config?.available_engines) {
+    for (let i = 0; i < prefs.engines.length; i++) {
+      const preferredEngine = prefs.engines[i];
+      const preferredModel = prefs.models[i];
+      const engineData = config.available_engines[preferredEngine];
+
+      if (engineData?.models?.length > 0) {
+        // Check if preferred model is available (case-insensitive fuzzy match)
+        const exactMatch = engineData.models.find((m: string) =>
+          m.toLowerCase().replace(/[-._\s]/g, "").includes(preferredModel.toLowerCase().replace(/[-._\s]/g, ""))
+        );
+        if (exactMatch) {
+          return { engine: preferredEngine, model: exactMatch };
+        }
+        // Use first available model if it's the only one
+        return { engine: preferredEngine, model: engineData.models[0] };
+      }
+    }
+  }
+
+  // 3. Fallback: use primary engine + default model
   const primaryEngine = config?.primary_engine || engine;
   const defaultModel = config?.default_model || agent.manifest.default_model;
   return { engine: primaryEngine, model: defaultModel };
@@ -261,7 +313,7 @@ export async function runAgent(
   const effectiveCategory = complexity === "light" ? "fast" : category;
 
   // 4. Build the failover queue of engines to try
-  const failoverQueue = getFailoverQueue(agent, config, resolvedEngine, effectiveCategory);
+  const failoverQueue = getFailoverQueue(agent, config, resolvedEngine, resolvedModel, effectiveCategory);
 
   let currentEngineIndex = 0;
   let currentEngine = resolvedEngine;
@@ -272,12 +324,9 @@ export async function runAgent(
 
   // 5. Failover Execution Loop
   while (currentEngineIndex < failoverQueue.length) {
-    currentEngine = failoverQueue[currentEngineIndex];
-    if (currentEngineIndex > 0) {
-      currentModel = getModelForEngine(config, currentEngine, effectiveCategory, agent);
-    } else {
-      currentModel = resolvedModel;
-    }
+    const target = failoverQueue[currentEngineIndex];
+    currentEngine = target.engine;
+    currentModel = target.model;
 
     if (dryRun) {
       // Dry-run mode: execute only the first engine without hitting a real LLM
@@ -326,7 +375,7 @@ export async function runAgent(
         currentPrompt = finalPrompt + "\n" + failoverResumeContext;
       } else {
         limitExhausted = true;
-        errors.push(`All available engines (${failoverQueue.join(", ")}) hit limits and were exhausted.`);
+        errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) hit limits and were exhausted.`);
         cumulativeOutput += "\n\n[Execution aborted: all available engines hit limits]";
       }
     } else {
@@ -433,49 +482,92 @@ export function getFailoverQueue(
   agent: LoadedAgent,
   config: any,
   initialEngine: string,
-  category?: string
-): string[] {
+  initialModel: string,
+  category: string
+): FailoverTarget[] {
   const installed = getInstalledEngines(config);
-  const queue = [initialEngine];
+  const queue: FailoverTarget[] = [{ engine: initialEngine, model: initialModel }];
 
-  // 1. Add preferred engines from manifest
+  const addToQueue = (engine: string, model: string) => {
+    const cleanEng = engine.toLowerCase().trim();
+    if (!installed.includes(cleanEng)) return;
+    
+    // De-duplicate same engine + model pairs
+    const exists = queue.some(t => t.engine === cleanEng && t.model === model);
+    if (!exists) {
+      queue.push({ engine: cleanEng, model });
+    }
+  };
+
+  // 1. Add preferred engines/models from category DEFAULT_MODEL_PREFERENCES
+  const prefs = DEFAULT_MODEL_PREFERENCES[category];
+  if (prefs) {
+    for (let i = 0; i < prefs.engines.length; i++) {
+      const targetEng = prefs.engines[i];
+      const preferredMdl = prefs.models[i];
+      
+      // Find the actual model name in the installed engine's models list
+      const engineData = config?.available_engines?.[targetEng];
+      if (engineData?.models?.length > 0) {
+        const exactMatch = engineData.models.find((m: string) =>
+          m.toLowerCase().replace(/[-._\s]/g, "").includes(preferredMdl.toLowerCase().replace(/[-._\s]/g, ""))
+        );
+        if (exactMatch) {
+          addToQueue(targetEng, exactMatch);
+        } else {
+          addToQueue(targetEng, engineData.models[0]);
+        }
+      }
+    }
+  }
+
+  // 2. Add preferred engines from manifest
   if (agent.manifest.preferred_engines) {
     for (const eng of agent.manifest.preferred_engines) {
-      const clean = eng.toLowerCase().trim();
-      if (!queue.includes(clean) && installed.includes(clean)) {
-        queue.push(clean);
-      }
+      const engineData = config?.available_engines?.[eng];
+      const model = engineData?.models?.[0] || agent.manifest.default_model;
+      addToQueue(eng, model);
     }
   }
 
-  // 2. Add fallback engines from manifest
+  // 3. Add fallback engines from manifest
   if (agent.manifest.fallback_engines) {
     for (const eng of agent.manifest.fallback_engines) {
-      const clean = eng.toLowerCase().trim();
-      if (!queue.includes(clean) && installed.includes(clean)) {
-        queue.push(clean);
-      }
+      const engineData = config?.available_engines?.[eng];
+      const model = engineData?.models?.[0] || agent.manifest.default_model;
+      addToQueue(eng, model);
     }
   }
 
-  // 3. Add any other installed engines as a last resort
+  // 4. Add any other installed engines as a last resort
   for (const eng of installed) {
-    if (!queue.includes(eng)) {
-      queue.push(eng);
-    }
+    const engineData = config?.available_engines?.[eng];
+    const model = engineData?.models?.[0] || "default";
+    addToQueue(eng, model);
   }
 
-  // 4. Expand agy to include agy2, agy3, agy4... etc. right after agy
-  const expandedQueue: string[] = [];
-  for (const eng of queue) {
-    if (!expandedQueue.includes(eng)) {
-      expandedQueue.push(eng);
+  // 5. Expand agy to include agy2, agy3, agy4... etc. right after agy
+  const expandedQueue: FailoverTarget[] = [];
+  for (const target of queue) {
+    if (!expandedQueue.some(t => t.engine === target.engine && t.model === target.model)) {
+      expandedQueue.push(target);
     }
-    if (eng === "agy" || eng === "antigravity") {
+    if (target.engine === "agy" || target.engine === "antigravity") {
       for (let i = 2; i <= 10; i++) {
         const key = `agy${i}`;
-        if (installed.includes(key) && !expandedQueue.includes(key)) {
-          expandedQueue.push(key);
+        if (installed.includes(key)) {
+          const agy2Data = config?.available_engines?.[key];
+          let model = target.model;
+          if (agy2Data?.models?.length > 0) {
+            const match = agy2Data.models.find((m: string) =>
+              m.toLowerCase().replace(/[-._\s]/g, "").includes(target.model.toLowerCase().replace(/[-._\s]/g, ""))
+            );
+            if (match) model = match;
+            else model = agy2Data.models[0];
+          }
+          if (!expandedQueue.some(t => t.engine === key && t.model === model)) {
+            expandedQueue.push({ engine: key, model });
+          }
         }
       }
     }

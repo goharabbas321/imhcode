@@ -1099,131 +1099,7 @@ async function runInit() {
     console.log(`  Created docs/start.md (write your project here)`);
   }
 
-  const globalConfigPath = path.join(GLOBAL_DIR, 'global.config.json');
-  let useGlobal = false;
-  let globalConfig = null;
-
-  if (fs.existsSync(globalConfigPath)) {
-    try {
-      globalConfig = JSON.parse(fs.readFileSync(globalConfigPath, 'utf8'));
-    } catch {}
-  }
-
   const isInteractive = process.stdout.isTTY;
-
-  if (globalConfig && isInteractive) {
-    console.log(`\n🕌 Found saved global default configuration:`);
-    console.log(`   Primary Engine: ${globalConfig.primary_engine} (${globalConfig.default_model || 'auto'})`);
-    console.log(`   Testing Route:  ${globalConfig.model_routing?.testing?.model || 'auto'} via ${globalConfig.model_routing?.testing?.engine || 'auto'}`);
-    console.log(`   Review Route:   ${globalConfig.model_routing?.review?.model || 'auto'} via ${globalConfig.model_routing?.review?.engine || 'auto'}`);
-
-    const ans = await askQuestion('\nUse default global engine and model routing? [Y/n] ');
-    if (ans.toLowerCase() !== 'n' && ans.toLowerCase() !== 'no') {
-      useGlobal = true;
-    }
-  } else if (globalConfig) {
-    useGlobal = true;
-  }
-
-  if (useGlobal && globalConfig) {
-    console.log('\n✅ Applying global default configuration...');
-
-    const dirsToCreate = [
-      DOCS_DIR,
-      LOCAL_DIR_NAME,
-      path.join(LOCAL_DIR_NAME, 'commands'),
-      path.join(LOCAL_DIR_NAME, 'sessions'),
-    ];
-    for (const dir of dirsToCreate) {
-      const dirPath = path.join(cwd, dir);
-      if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
-        console.log(`  Created local directory: ${dir}`);
-      }
-    }
-
-    const startMdPath = path.join(cwd, START_MD);
-    if (!fs.existsSync(startMdPath)) {
-      const startMdContent = [
-        '# 🕌 IMH-Code — Project Start',
-        '',
-        '> **Imam Hussain Coding Harness Platform**',
-        '> Answer the scope questions below, write your description, then run `imhcode plan`.',
-        '',
-        '---',
-        '',
-        '## ⚡ Quick Scope Check',
-        '',
-        '**Do you need a backend API / server-side logic?**',
-        '> **Answer:** yes  *(change to: yes / no / unsure)*',
-        '',
-        '**Do you need a mobile app (iOS/Android)?**',
-        '> **Answer:** no  *(change to: yes / no)*',
-        '',
-        '---',
-        '',
-        '## 📝 Your Project Description',
-        '',
-        'Write your complete project idea below. Be as detailed as possible.',
-        'Include: what you\'re building, who it\'s for, key features, preferred stack,',
-        'design preferences, integrations needed, business constraints.',
-        '',
-        '<!-- WRITE_PROMPT_HERE -->',
-        'I want to build a SaaS dashboard for managing hotel room bookings with real-time availability,',
-        'a Next.js frontend, Laravel API backend, and PostgreSQL database. Target users are hotel managers.',
-        'Key features: room calendar, booking CRUD, guest management, reporting, email notifications.',
-        '<!-- END_PROMPT -->',
-        '',
-        '---',
-        '',
-        '## 🚀 Next Step',
-        '',
-        'After filling in the scope and your description, run:',
-        '',
-        '```bash',
-        'imhcode plan',
-        '```',
-        '',
-        'IMH-Code will invoke your configured **planning AI model** (e.g. Claude Opus, GPT-5.5)',
-        'to generate `docs/brainstorming.md` with smart, project-specific questions and answers.',
-      ].join('\n');
-      fs.writeFileSync(startMdPath, startMdContent, 'utf8');
-      console.log(`  Created docs/start.md (write your project here)`);
-    }
-
-    const localGitignore = path.join(cwd, '.gitignore');
-    if (!fs.existsSync(localGitignore)) {
-      const gitignoreTemplate = path.join(packageRoot, '.gitignore.template');
-      if (fs.existsSync(gitignoreTemplate)) {
-        fs.copyFileSync(gitignoreTemplate, localGitignore);
-        console.log(`  Created local .gitignore`);
-      }
-    }
-
-    registerCliGlobally(imhcodeScriptPath);
-
-    const configPath = path.join(cwd, CONFIG_FILE);
-    fs.writeFileSync(configPath, JSON.stringify(globalConfig, null, 2), 'utf8');
-    console.log(`\n💾 Configuration saved: ${configPath}`);
-
-    console.log(`\n✅ ${PLATFORM_NAME} initialized successfully!`);
-    console.log(`─`.repeat(60));
-    console.log(`\n🕌 HOW TO BUILD WITH IMH-CODE:\n`);
-    console.log(`  1. Open docs/start.md → Answer scope questions + write your description`);
-    console.log(`  2. Run: imhcode plan`);
-    console.log(`     → Your planning AI generates brainstorming.md`);
-    console.log(`  3. Open docs/brainstorming.md → Review/edit AI-recommended answers`);
-    console.log(`  4. Run: imhcode plan`);
-    console.log(`     → Your planning AI generates sprint plans with correct agent routing`);
-    console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks)`);
-    console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks)`);
-    console.log(`  7. Run: imhcode test        → Final testing + security + SEO`);
-    console.log(`  8. Run: imhcode report      → Generate PROJECT_REPORT.md`);
-    console.log(`\n  Run "imhcode --help" for all commands.`);
-    console.log(`─`.repeat(60));
-    console.log('');
-    return;
-  }
 
   // Create .gitignore
   const localGitignore = path.join(cwd, '.gitignore');
@@ -1236,7 +1112,7 @@ async function runInit() {
   }
 
   registerCliGlobally(imhcodeScriptPath);
-  ensureCavemanAndGraphify(globalConfig?.skills_configured);
+  ensureCavemanAndGraphify(false);
 
   // ── Interactive Engine & Model Setup ────────────────────────────────────────
   console.log('\n🔍 Scanning for local coding assistant CLIs...');
@@ -1298,12 +1174,16 @@ async function runInit() {
     console.log(`✅ Default model: ${defaultModel}`);
   }
 
+  // Call setupModelRouting
+  const modelRouting = await setupModelRouting(engines, foundEngines, isInteractive);
+
   // Write config
   const configPath = path.join(cwd, CONFIG_FILE);
   const configData = {
     primary_engine: primaryEngine,
     default_model:  defaultModel || undefined,
     testing_mode:   'fast',
+    model_routing:  modelRouting,
     available_engines: {},
   };
 
@@ -1317,36 +1197,198 @@ async function runInit() {
   fs.writeFileSync(configPath, JSON.stringify(configData, null, 2), 'utf8');
   console.log(`\n💾 Configuration saved: ${configPath}`);
 
-  // Save to global config defaults as well
-  const globalConfigData = {
-    ...configData,
-    skills_configured: true,
-  };
-  try {
-    fs.writeFileSync(globalConfigPath, JSON.stringify(globalConfigData, null, 2), 'utf8');
-    console.log(`💾 Global defaults saved: ${globalConfigPath}`);
-  } catch (e) {
-    console.warn(`⚠️ Could not save global default configuration: ${e.message}`);
-  }
-
   // Print final guide
   console.log(`\n✅ ${PLATFORM_NAME} initialized successfully!`);
   console.log(`─`.repeat(60));
   console.log(`\n🕌 HOW TO BUILD WITH IMH-CODE:\n`);
   console.log(`  1. Open docs/start.md → Answer scope questions + write your description`);
   console.log(`  2. Run: imhcode plan`);
-  console.log(`     → Your planning AI generates brainstorming.md`);
+  console.log(`     → Your planning AI (${modelRouting?.planning?.model || 'configured model'}) generates brainstorming.md`);
   console.log(`  3. Open docs/brainstorming.md → Review/edit AI-recommended answers`);
   console.log(`  4. Run: imhcode plan`);
   console.log(`     → Your planning AI generates sprint plans with correct agent routing`);
-  console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks)`);
-  console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks)`);
+  console.log(`  5. Run: imhcode execute 1   → Sprint 1 (frontend tasks → ${modelRouting?.frontend?.model || 'frontend model'})`);
+  console.log(`  6. Run: imhcode execute 2   → Sprint 2 (backend tasks → ${modelRouting?.backend?.model || 'backend model'})`);
   console.log(`  7. Run: imhcode test        → Final testing + security + SEO`);
   console.log(`  8. Run: imhcode report      → Generate PROJECT_REPORT.md`);
   console.log(`\n  Run "imhcode --help" for all commands.`);
   console.log(`─`.repeat(60));
   console.log('');
 }
+
+// ─── Fix 4: Model Routing Setup Wizard (Ranked Scoring Algorithm) ─────────────
+
+/**
+ * Normalize a model/engine string for fuzzy matching:
+ * lowercase, remove hyphens, dots, underscores, spaces.
+ */
+function normalizeForMatch(s) {
+  return (s || '').toLowerCase().replace(/[-._\s]/g, '');
+}
+
+/**
+ * Select the best model for a category from available engines using ranked scoring.
+ * Returns { engine, model } or null if nothing found.
+ */
+function selectBestModel(ranks, engines) {
+  for (const [preferredEngine, modelSubstring] of ranks) {
+    const engData = engines[preferredEngine];
+    if (!engData?.path || !engData.models?.length) continue;
+    const match = engData.models.find(m => normalizeForMatch(m).includes(normalizeForMatch(modelSubstring)));
+    if (match) return { engine: preferredEngine, model: match };
+  }
+  return null;
+}
+
+async function setupModelRouting(engines, foundEngines, isInteractive) {
+  const categories = {
+    frontend: {
+      label: 'Frontend (UI/UX, components, animations)',
+      note: 'Mimo v2.5 Pro → Antigravity OPUS 4.6 → Deepseek v4 Flash',
+      ranks: [
+        ['mimo', 'mimo-vl-v2.5-pro'],
+        ['agy', 'Claude Opus 4.6'],
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    },
+    backend: {
+      label: 'Backend (APIs, database, business logic)',
+      note: 'Deepseek v4 Pro → Antigravity OPUS 4.6 → Deepseek v4 Flash',
+      ranks: [
+        ['opencode', 'deepseek-v4-pro'],
+        ['agy', 'Claude Opus 4.6'],
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    },
+    planning: {
+      label: 'Planning (brainstorming, sprint planning)',
+      note: 'Claude OPUS 4.8 → Fugu → Deepseek v4 Flash',
+      ranks: [
+        ['agy', 'Claude Opus 4.8'],
+        ['agy', 'Claude Opus 4.6'],
+        ['codex-fugu', 'fugu-ultra'],
+        ['codex-fugu', 'fugu'],
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    },
+    testing: {
+      label: 'Testing (QA, security audit, E2E)',
+      note: 'Claude OPUS 4.8 → Fugu → Deepseek v4 Flash',
+      ranks: [
+        ['agy', 'Claude Opus 4.8'],
+        ['agy', 'Claude Opus 4.6'],
+        ['codex-fugu', 'fugu-ultra'],
+        ['codex-fugu', 'fugu'],
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    },
+    review: {
+      label: 'Review (SEO, debugging, code review)',
+      note: 'Claude OPUS 4.8 → Fugu → Deepseek v4 Flash',
+      ranks: [
+        ['agy', 'Claude Opus 4.8'],
+        ['agy', 'Claude Opus 4.6'],
+        ['codex-fugu', 'fugu-ultra'],
+        ['codex-fugu', 'fugu'],
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    },
+    fast: {
+      label: 'Fast (boilerplate, config, simple tasks)',
+      note: 'Deepseek v4 Flash',
+      ranks: [
+        ['opencode', 'deepseek-v4-flash']
+      ]
+    }
+  };
+
+  const recommended = {};
+  for (const [cat, cfg] of Object.entries(categories)) {
+    const best = selectBestModel(cfg.ranks, engines);
+    if (best) {
+      recommended[cat] = best;
+    } else if (foundEngines.length > 0) {
+      // Fallback: primary engine first model
+      const fe = foundEngines[0];
+      recommended[cat] = { engine: fe, model: engines[fe].models[0] || 'default' };
+    }
+  }
+
+  // Show recommended routing table
+  console.log('\n' + '─'.repeat(70));
+  console.log('🧠 Recommended Model Routing (ranked by priority for each category):\n');
+  console.log('  Category      │ Engine        │ Model');
+  console.log('  ──────────────┼───────────────┼───────────────────────────────────────');
+  for (const [cat, rec] of Object.entries(recommended)) {
+    const catLabel = cat.padEnd(12);
+    const eng      = (rec.engine || '?').padEnd(13);
+    const mdl      = rec.model || '?';
+    console.log(`  ${catLabel}  │ ${eng} │ ${mdl}`);
+  }
+  console.log('  ' + '─'.repeat(67));
+  console.log(`\n  Routings:\n` +
+              `  - frontend: Mimo v2.5 Pro → Antigravity OPUS 4.6 → Deepseek v4 Flash\n` +
+              `  - backend:  Deepseek v4 Pro → Antigravity OPUS 4.6 → Deepseek v4 Flash\n` +
+              `  - planning: Claude OPUS 4.8 → Fugu → Deepseek v4 Flash\n` +
+              `  - testing:  Claude OPUS 4.8 → Fugu → Deepseek v4 Flash\n` +
+              `  - review:   Claude OPUS 4.8 → Fugu → Deepseek v4 Flash\n` +
+              `  - fast:     Deepseek v4 Flash`);
+
+  const routing = {};
+
+  if (isInteractive) {
+    const answer = await askQuestion('\nAccept recommended routing? [Y/n] ');
+    if (answer.toLowerCase() === 'n' || answer.toLowerCase() === 'no') {
+      // Let user customize each category
+      for (const [cat, cfg] of Object.entries(categories)) {
+        console.log(`\n  Configure model for [${cat}] — ${cfg.label}`);
+        console.log(`  Priority: ${cfg.note}`);
+
+        const allModels = [];
+        for (const eng of foundEngines) {
+          for (const m of engines[eng].models) {
+            allModels.push({ engine: eng, model: m });
+          }
+        }
+
+        if (allModels.length === 0) {
+          routing[cat] = recommended[cat];
+          continue;
+        }
+
+        allModels.forEach((item, i) => {
+          const rec   = recommended[cat];
+          const isRec = rec && rec.engine === item.engine && rec.model === item.model;
+          console.log(`    [${i + 1}] ${item.model} (${item.engine})${isRec ? ' ← Recommended ✅' : ''}`);
+        });
+
+        let selectedIdx = allModels.findIndex(m => {
+          const rec = recommended[cat];
+          return rec && m.engine === rec.engine && m.model === rec.model;
+        });
+        if (selectedIdx < 0) selectedIdx = 0;
+
+        while (true) {
+          const ans = await askQuestion(`  Select model for ${cat} [1-${allModels.length}] (default: ${selectedIdx + 1}): `);
+          if (ans === '') { routing[cat] = allModels[selectedIdx]; break; }
+          const p = parseInt(ans, 10);
+          if (p >= 1 && p <= allModels.length) { routing[cat] = allModels[p - 1]; break; }
+          console.log(`  ❌ Invalid. Enter 1–${allModels.length}.`);
+        }
+        console.log(`  ✅ ${cat}: ${routing[cat].model} (${routing[cat].engine})`);
+      }
+    } else {
+      Object.assign(routing, recommended);
+      console.log('\n✅ Recommended routing accepted.');
+    }
+  } else {
+    Object.assign(routing, recommended);
+    console.log('\n✅ Recommended routing applied automatically.');
+  }
+
+  return routing;
+}
+
 // ─── Fix 0: LLM-Powered Planning ─────────────────────────────────────────────
 
 /**
@@ -3440,14 +3482,44 @@ async function runTuiCommand() {
         const lines = [];
         const rlInput = readline.createInterface({ input: process.stdin, output: process.stdout });
         
-        while (true) {
-          const line = await new Promise(res => rlInput.question('> ', res));
-          const trimmed = line.trim();
-          if (trimmed === '/submit' || trimmed === '.') {
-            break;
-          }
-          lines.push(line);
-        }
+        let pasteTimeout = null;
+        let isDone = false;
+
+        await new Promise(resolve => {
+          rlInput.on('line', (line) => {
+            if (isDone) return;
+
+            const trimmed = line.trim();
+            if (trimmed === '/submit' || trimmed === '.') {
+              if (pasteTimeout) clearTimeout(pasteTimeout);
+              isDone = true;
+              resolve();
+              return;
+            }
+
+            if (trimmed === '') {
+              if (pasteTimeout) clearTimeout(pasteTimeout);
+              pasteTimeout = setTimeout(() => {
+                isDone = true;
+                resolve();
+              }, 100);
+            } else {
+              if (pasteTimeout) {
+                clearTimeout(pasteTimeout);
+                pasteTimeout = null;
+              }
+            }
+
+            lines.push(line);
+          });
+          
+          rlInput.on('close', () => {
+            if (!isDone) {
+              isDone = true;
+              resolve();
+            }
+          });
+        });
         
         const desc = lines.join('\n');
         rlInput.close();

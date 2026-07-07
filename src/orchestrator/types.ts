@@ -107,3 +107,8 @@ export interface EngineAdapter {
   readonly name: string;
   run(prompt: string, model: string): Promise<string>;
 }
+
+export interface FailoverTarget {
+  engine: string;
+  model: string;
+}
