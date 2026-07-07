@@ -1493,8 +1493,7 @@ async function invokePlanningLLM(promptText, config, cwd) {
   // Check if orchestrator is built
   const distPath = path.join(__dirname, '..', 'dist', 'orchestrator', 'index.js');
   if (!fs.existsSync(distPath)) {
-    console.warn('  ⚠️  Orchestrator not built — falling back to static template.');
-    console.warn('  Run "npm run build" in the imhcode package to enable LLM-powered planning.');
+    console.warn('  ⚠️  Orchestrator not built. Run "npm run build" in the imhcode package.');
     return null;
   }
 
@@ -1502,7 +1501,7 @@ async function invokePlanningLLM(promptText, config, cwd) {
   const planningModel  = config?.model_routing?.planning?.model;
 
   if (!planningEngine || !planningModel) {
-    console.warn('  ⚠️  No planning model configured — falling back to static template.');
+    console.warn('  ⚠️  No planning model configured.');
     console.warn('  Run "imhcode" to set up model routing.');
     return null;
   }
@@ -1520,7 +1519,7 @@ async function invokePlanningLLM(promptText, config, cwd) {
     })();
 
     if (!agentsDir) {
-      console.warn('  ⚠️  No agents directory found — falling back to static template.');
+      console.warn('  ⚠️  No agents directory found.');
       return null;
     }
 
@@ -1542,8 +1541,12 @@ async function invokePlanningLLM(promptText, config, cwd) {
     );
 
     if (result.errors.length > 0) {
-      console.warn(`  ⚠️  Planning LLM returned errors — falling back to static template.`);
+      console.warn(`  ⚠️  Planning LLM returned errors:`);
       result.errors.forEach(e => console.warn(`      ${e}`));
+      // Still return any partial output that was accumulated during failover attempts
+      if (result.output && result.output.trim().length > 100) {
+        return result.output;
+      }
       return null;
     }
 
@@ -1551,7 +1554,6 @@ async function invokePlanningLLM(promptText, config, cwd) {
 
   } catch (err) {
     console.warn(`  ⚠️  Planning LLM invocation failed: ${err.message}`);
-    console.warn('  Falling back to static template.');
     return null;
   }
 }

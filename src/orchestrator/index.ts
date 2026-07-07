@@ -362,10 +362,17 @@ export async function runAgent(
 
       // Check if limits (tokens/quota/rate) or command errors occurred
       const check = detectLimitCondition(output, error);
-      const executionFailed = check.limitReached || error !== null;
+      // Also treat empty/trivially-short output (< 50 chars) as a failure
+      // This catches cases where the engine exits cleanly but produces no content
+      const outputEmpty = !error && (!output || output.trim().length < 50);
+      const executionFailed = check.limitReached || error !== null || outputEmpty;
 
       if (executionFailed) {
-        const reason = check.limitReached ? check.reason : (error.message || String(error));
+        const reason = check.limitReached
+          ? check.reason
+          : outputEmpty
+            ? "Engine returned empty or insufficient output"
+            : (error.message || String(error));
         console.log(`\n⚠️  [IMH-Code] Engine "${currentEngine}" execution failed: ${reason}`);
         
         if (check.partialOutput || (output && !error)) {
@@ -377,18 +384,21 @@ export async function runAgent(
           const nextEng = failoverQueue[currentEngineIndex];
           console.log(`🔄 [IMH-Code] Failing over to next best available engine "${nextEng.engine}" using model "${nextEng.model}"...`);
 
-          // Build failover resume prompt
-          const failoverResumeContext = [
-            `\n# ⚠️ FAILOVER RESUME CONTEXT`,
-            `The previous engine execution (using ${currentEngine} with model ${currentModel}) encountered a failure and was interrupted mid-task.`,
-            `Here is the partial output produced by the previous run before it stopped:`,
-            `\n---`,
-            cumulativeOutput.trim(),
-            `---\n`,
-            `Please resume from exactly where the process was interrupted. Review what was already created or modified, and complete the remaining parts of the original task. Do NOT restart the entire task from scratch.`
-          ].join("\n");
+          // Build failover resume prompt — only include resume context if there's meaningful partial output
+          if (cumulativeOutput.trim().length > 50) {
+            const failoverResumeContext = [
+              `\n# ⚠️ FAILOVER RESUME CONTEXT`,
+              `The previous engine execution (using ${currentEngine} with model ${currentModel}) encountered a failure and was interrupted mid-task.`,
+              `Here is the partial output produced by the previous run before it stopped:`,
+              `\n---`,
+              cumulativeOutput.trim(),
+              `---\n`,
+              `Please resume from exactly where the process was interrupted. Review what was already created or modified, and complete the remaining parts of the original task. Do NOT restart the entire task from scratch.`
+            ].join("\n");
 
-          currentPrompt = finalPrompt + "\n" + failoverResumeContext;
+            currentPrompt = finalPrompt + "\n" + failoverResumeContext;
+          }
+          // If no meaningful partial output, just use the original prompt (fresh start)
         } else {
           limitExhausted = true;
           errors.push(`All available engines (${failoverQueue.map(t => `${t.engine} (${t.model})`).join(", ")}) failed and were exhausted.`);
