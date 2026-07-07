@@ -50,7 +50,8 @@ function runCliWithStdin(
   binaryPath: string,
   args: string[],
   stdinInput: string,
-  cliName: string
+  cliName: string,
+  env?: NodeJS.ProcessEnv
 ): Promise<string> {
   console.log(`   [1/3] 🔍 Resolved binary path: ${binaryPath}`);
   console.log(`   [2/3] 🚀 Spawning "${cliName}" CLI...`);
@@ -58,7 +59,10 @@ function runCliWithStdin(
   console.log(`\n─── Streaming Live Output from ${cliName} ──────────────────────────\n`);
 
   return new Promise((resolve, reject) => {
-    const child = spawn(binaryPath, args, { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(binaryPath, args, { 
+      stdio: ["pipe", "pipe", "pipe"],
+      env: env ? { ...process.env, ...env } : undefined
+    });
 
     let stdout = "";
     let stderr = "";
@@ -303,10 +307,12 @@ export class AgyCLIAdapter implements EngineAdapter {
   }
 
   async run(prompt: string, model: string): Promise<string> {
-    const binary = resolveBinary(this.name, [
-      `~/.local/bin/${this.name}`,
-      `/usr/local/bin/${this.name}`,
-      `/opt/homebrew/bin/${this.name}`,
+    const isAgyN = /^agy\d+$/.test(this.name);
+    const baseName = isAgyN ? "agy" : this.name;
+    const binary = resolveBinary(baseName, [
+      `~/.local/bin/${baseName}`,
+      `/usr/local/bin/${baseName}`,
+      `/opt/homebrew/bin/${baseName}`,
     ]);
 
     const args: string[] = [
@@ -318,7 +324,35 @@ export class AgyCLIAdapter implements EngineAdapter {
       args.unshift("--model", model);
     }
 
-    return await runCliWithStdin(binary, args, "", `Antigravity (${this.name})`);
+    let customEnv: NodeJS.ProcessEnv | undefined = undefined;
+    if (isAgyN) {
+      const home = os.homedir();
+      let customHome = home;
+      if (this.name === "agy2") {
+        const abbasPath = path.join(path.dirname(home), "goharabbas", ".gemini-abbas");
+        if (fs.existsSync(abbasPath)) {
+          customHome = abbasPath;
+        }
+      } else {
+        const num = this.name.replace("agy", "");
+        const patterns = [
+          path.join(path.dirname(home), "goharabbas", `.gemini-agy${num}`),
+          path.join(path.dirname(home), "goharabbas", `.gemini-${num}`),
+          path.join(path.dirname(home), "goharabbas", `.gemini-abbas${num}`)
+        ];
+        for (const p of patterns) {
+          if (fs.existsSync(p)) {
+            customHome = p;
+            break;
+          }
+        }
+      }
+      if (customHome !== home) {
+        customEnv = { HOME: customHome };
+      }
+    }
+
+    return await runCliWithStdin(binary, args, "", `Antigravity (${this.name})`, customEnv);
   }
 }
 

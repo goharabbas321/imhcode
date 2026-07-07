@@ -2835,20 +2835,33 @@ function scanAssistantCLIs() {
   };
 
   // Scan for agy2, agy3, agy4, etc.
-  for (let i = 2; i <= 10; i++) {
-    const key = `agy${i}`;
-    const binaryPath = resolveBinary(key, [
-      `~/.local/bin/${key}`,
-      `/usr/local/bin/${key}`,
-      `/opt/homebrew/bin/${key}`,
-    ]);
-    if (binaryPath) {
-      engines[key] = {
-        name: `Antigravity CLI (${key})`,
-        path: binaryPath,
-        models: [],
-        modelsCmd: b => `"${b}" models 2>/dev/null || echo ''`
-      };
+  if (engines.agy.path) {
+    const home = os.homedir();
+    for (let i = 2; i <= 10; i++) {
+      const key = `agy${i}`;
+      let customHomeExists = false;
+      if (i === 2) {
+        customHomeExists = fs.existsSync(path.join(path.dirname(home), 'goharabbas', '.gemini-abbas'));
+      } else {
+        customHomeExists = fs.existsSync(path.join(path.dirname(home), 'goharabbas', `.gemini-agy${i}`)) ||
+                           fs.existsSync(path.join(path.dirname(home), 'goharabbas', `.gemini-${i}`)) ||
+                           fs.existsSync(path.join(path.dirname(home), 'goharabbas', `.gemini-abbas${i}`));
+      }
+      
+      const specificBinaryPath = resolveBinary(key, [
+        `~/.local/bin/${key}`,
+        `/usr/local/bin/${key}`,
+        `/opt/homebrew/bin/${key}`,
+      ]);
+
+      if (specificBinaryPath || customHomeExists) {
+        engines[key] = {
+          name: `Antigravity CLI (${key})`,
+          path: specificBinaryPath || engines.agy.path,
+          models: [],
+          modelsCmd: b => `"${b}" models 2>/dev/null || echo ''`
+        };
+      }
     }
   }
 
